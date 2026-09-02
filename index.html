@@ -2,13 +2,31 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Grow & Glow</title>
     <meta name="description" content="Grow & Glow — your personal study timetable, focus timer, planner, and collaborative study-with-friends app." />
     <meta property="og:title" content="Grow & Glow" />
     <meta property="og:description" content="Grow & Glow — your personal study timetable, focus timer, planner, and collaborative study-with-friends app." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- PWA Configuration -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#F48FB1" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="apple-touch-icon" href="/pwa-192.png" />
+
+    <!-- Service Worker Registration -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js").catch((err) => {
+            console.error("Service Worker registration failed:", err);
+          });
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
