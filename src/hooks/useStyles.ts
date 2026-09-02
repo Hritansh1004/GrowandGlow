@@ -296,7 +296,6 @@ export default function useStyles(): AppStyles {
         background: colors.accent,
         boxShadow: `0 0 14px ${colors.accent}`,
       },
-
       grid: {
         display: "grid",
         gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
@@ -352,16 +351,31 @@ export default function useStyles(): AppStyles {
         marginBottom: "20px",
       },
 
-      timerCard: {
-        padding: "26px 22px",
-        borderRadius: radius.xl,
-        background:
-          theme === "light"
-            ? `linear-gradient(145deg, ${colors.cardHover}, ${colors.card})`
-            : `linear-gradient(145deg, #12211f, #11191c)`,
-        border: theme === "light" ? `1px solid ${colors.border}` : `1px solid #2f6f67`,
-        marginBottom: "18px",
-      },
+      // MANNI MODE: dedicated soft-pastel branch added ahead of the
+      // existing light/dark ternary. Light and Dark below are byte-
+      // identical to before — nothing in their branch changed.
+      timerCard:
+        theme === "manni"
+          ? {
+              padding: "26px 22px",
+              borderRadius: radius.xl,
+              background: colors.bgGradient
+                ? colors.bgGradient
+                : `linear-gradient(145deg, ${colors.cardAlt}, ${colors.card})`,
+              border: `1px solid ${colors.border}`,
+              boxShadow: `0 14px 42px ${colors.borderGlow || "rgba(244, 143, 177, 0.28)"}`,
+              marginBottom: "18px",
+            }
+          : {
+              padding: "26px 22px",
+              borderRadius: radius.xl,
+              background:
+                theme === "light"
+                  ? `linear-gradient(145deg, ${colors.cardHover}, ${colors.card})`
+                  : `linear-gradient(145deg, #12211f, #11191c)`,
+              border: theme === "light" ? `1px solid ${colors.border}` : `1px solid #2f6f67`,
+              marginBottom: "18px",
+            },
 
       timerInfoCard: {
         padding: "20px",
@@ -474,7 +488,7 @@ export default function useStyles(): AppStyles {
         borderRadius: radius.sm,
         border: "none",
         background: colors.accent,
-        color: "#071012",
+        color: theme === "manni" ? colors.accentText : "#071012",
         fontWeight: 800,
         fontSize: "13px",
         cursor: "pointer",
@@ -542,7 +556,7 @@ export default function useStyles(): AppStyles {
         borderRadius: radius.sm,
         border: "none",
         background: colors.accent,
-        color: "#071012",
+        color: theme === "manni" ? colors.accentText : "#071012",
         fontWeight: 800,
         fontSize: "13px",
         cursor: "pointer",
@@ -617,23 +631,43 @@ export default function useStyles(): AppStyles {
         flexShrink: 0,
       },
 
-      bottomNav: {
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        display: "flex",
-        justifyContent: "space-around",
-        alignItems: "center",
-        padding: "10px 6px calc(10px + env(safe-area-inset-bottom))",
-        background:
-          theme === "light"
-            ? "rgba(255, 255, 255, 0.92)"
-            : "rgba(11, 17, 19, 0.92)",
-        backdropFilter: "blur(14px)",
-        borderTop: `1px solid ${colors.border}`,
-        zIndex: 50,
-      },
+      // MANNI MODE: dedicated soft-frosted branch added ahead of the
+      // existing light/dark ternary. Light and Dark below are byte-
+      // identical to before.
+      bottomNav:
+        theme === "manni"
+          ? {
+              position: "fixed",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              display: "flex",
+              justifyContent: "space-around",
+              alignItems: "center",
+              padding: "10px 6px calc(10px + env(safe-area-inset-bottom))",
+              background: "rgba(255, 240, 245, 0.90)",
+              backdropFilter: "blur(14px)",
+              borderTop: `1px solid ${colors.border}`,
+              boxShadow: `0 -8px 24px ${colors.borderGlow || "rgba(244, 143, 177, 0.18)"}`,
+              zIndex: 50,
+            }
+          : {
+              position: "fixed",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              display: "flex",
+              justifyContent: "space-around",
+              alignItems: "center",
+              padding: "10px 6px calc(10px + env(safe-area-inset-bottom))",
+              background:
+                theme === "light"
+                  ? "rgba(255, 255, 255, 0.92)"
+                  : "rgba(11, 17, 19, 0.92)",
+              backdropFilter: "blur(14px)",
+              borderTop: `1px solid ${colors.border}`,
+              zIndex: 50,
+            },
 
       bottomNavItem: {
         display: "flex",
@@ -650,8 +684,12 @@ export default function useStyles(): AppStyles {
         flex: 1,
       },
 
+      // MANNI MODE: active tab gets a soft glow in addition to the
+      // existing color change. Light/Dark unaffected (textShadow is
+      // "none" for them, same visual result as before).
       bottomNavItemActive: {
         color: colors.accentSoft,
+        textShadow: theme === "manni" ? `0 0 10px ${colors.borderGlow || "rgba(244, 143, 177, 0.5)"}` : "none",
       },
     };
   }, [colors, theme]);

@@ -81,8 +81,8 @@ export default function Profile({
   return (
     <div style={styles.page}>
       <main style={styles.authCard}>
-        <div style={styles.logo}>B</div>
-        <p style={styles.eyebrow}>BENCHMATE</p>
+        <div style={styles.logo}>G</div>
+        <p style={styles.eyebrow}>GROW & GLOW</p>
         <h1 style={styles.authTitle}>
           {isOnboarding ? "Welcome" : "Edit Profile"}
         </h1>
@@ -243,13 +243,13 @@ export default function Profile({
             required
           />
           <p style={styles.helper}>
-            Friends will find you by this username in Benchmates.
+            Friends will find you by this username.
           </p>
 
           <label style={styles.label}>Bio</label>
           <textarea
             style={{ ...styles.input, minHeight: "80px", resize: "vertical", fontFamily: "inherit" }}
-            placeholder="Tell your Benchmates a little about yourself (optional)"
+            placeholder="Tell your friends a little about yourself (optional)"
             value={bio}
             maxLength={160}
             onChange={(e) => setBio(e.target.value)}

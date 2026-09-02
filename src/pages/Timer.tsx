@@ -9,6 +9,7 @@ import { getThemeColors, getColorGradient } from "../styles/theme";
 import AlarmSelector from "../components/AlarmSelector";
 import ColorSelector from "../components/ColorSelector";
 import RatingModal from "../components/RatingModal";
+import { ManniAmbientBackground, ManniCornerDecor } from "../components/ManniEffects";
 import {
   ArrowLeftIcon,
   PlayIcon,
@@ -21,6 +22,7 @@ import {
   TrashIcon,
   BookIcon,
   DragHandleIcon,
+  SparkleIcon,
 } from "../components/Icons";
 
 const QUICK_PRESETS = [5, 15, 25, 45, 60, 90];
@@ -100,6 +102,12 @@ export default function Timer({
   const { theme } = useTheme();
   const colors = getThemeColors(theme);
   const { allAlarms, playAlarm } = useAlarms(user?.id);
+
+  // MANNI MODE ONLY: everything gated behind this flag is purely additive.
+  // Light/Dark render exactly the JSX/styles they always have — this flag
+  // is false for both, so none of the Manni-only branches below ever run
+  // for them. Same pattern as Dashboard.tsx / BottomNav.tsx.
+  const isManni = theme === "manni";
 
   // Mode: "custom" | "pomodoro" | "sequence"
   const [timerMode, setTimerMode] = useState<"custom" | "pomodoro" | "sequence">("custom");
@@ -374,6 +382,8 @@ export default function Timer({
   // custom color, so nothing changes visually for a session nobody
   // colored — only sessions with a real color (from any of the three
   // pickers above, or a colored Sequence block) get a matching glow.
+  // getColorGradient already branches internally on `theme`, so the
+  // Manni pastel treatment here is automatic and required no changes.
   const activeFallbackColor = isBreak ? colors.warning : colors.accent;
   const activeColorTreatment = getColorGradient(
     activeTimer?.color || activeFallbackColor,
@@ -382,8 +392,20 @@ export default function Timer({
   );
 
   return (
-    <div style={styles.page}>
-      <main style={styles.dashboard}>
+    <div
+      style={{
+        ...styles.page,
+        // MANNI MODE ONLY: soft blush gradient instead of the flat bg.
+        // Light/Dark keep the exact same solid colors.bg they always had.
+        background: isManni && colors.bgGradient ? colors.bgGradient : colors.bg,
+        position: "relative",
+      }}
+    >
+      {/* MANNI MODE ONLY: slow-drifting hearts/sparkles/stars behind all
+          page content. Renders nothing for Light/Dark. */}
+      {isManni && <ManniAmbientBackground />}
+
+      <main style={{ ...styles.dashboard, position: "relative", zIndex: 1 }}>
         {/* BACK BUTTON */}
         <button
           type="button"
@@ -402,7 +424,22 @@ export default function Timer({
         {/* HEADER */}
         <div style={styles.timerHeader}>
           <p style={styles.eyebrow}>FOCUS TIMER</p>
-          <h1 style={styles.routineTitle}>Focus & Multi-Period Timer</h1>
+          <h1
+            style={{
+              ...styles.routineTitle,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            Focus & Multi-Period Timer
+            {/* MANNI MODE ONLY: small sparkle accent next to the title. */}
+            {isManni && (
+              <span style={{ color: colors.accent, display: "inline-flex" }} aria-hidden="true">
+                <SparkleIcon width={16} height={16} />
+              </span>
+            )}
+          </h1>
           <p style={styles.cardText}>
             Run single focus sessions, standard Pomodoros, or multi-period routine sequences.
           </p>
@@ -425,6 +462,16 @@ export default function Timer({
               boxShadow: `0 20px 55px ${activeColorTreatment.shadowColor}`,
             }}
           >
+            {/* MANNI MODE ONLY: twinkling accent tucked in the corner —
+                a cloud during breaks, a heart during focus. */}
+            {isManni && (
+              <ManniCornerDecor
+                kind={isBreak ? "cloud" : "heart"}
+                corner="top-right"
+                color={colors.accent}
+              />
+            )}
+
             {/* SESSION BADGE */}
             <div
               style={{
@@ -433,8 +480,18 @@ export default function Timer({
                 gap: "6px",
                 padding: "6px 14px",
                 borderRadius: "999px",
-                background: isBreak ? "rgba(232, 196, 104, 0.12)" : "rgba(88, 216, 196, 0.12)",
-                border: isBreak ? "1px solid rgba(232, 196, 104, 0.3)" : `1px solid ${colors.accent}`,
+                background: isBreak
+                  ? theme === "manni"
+                    ? "rgba(246, 178, 107, 0.18)"
+                    : "rgba(232, 196, 104, 0.12)"
+                  : theme === "manni"
+                  ? colors.accentDim
+                  : "rgba(88, 216, 196, 0.12)",
+                border: isBreak
+                  ? theme === "manni"
+                    ? `1px solid ${colors.warning}`
+                    : "1px solid rgba(232, 196, 104, 0.3)"
+                  : `1px solid ${colors.accent}`,
                 color: isBreak ? colors.warning : colors.accent,
                 fontSize: "12px",
                 fontWeight: 800,
@@ -608,7 +665,10 @@ export default function Timer({
           /* ========================================================
               POMODORO MANUAL TRANSITION PROMPT (Auto-advance is OFF)
           ======================================================== */
-          <section style={{ ...styles.timerCard, textAlign: "center", padding: "32px 20px" }}>
+          <section style={{ ...styles.timerCard, textAlign: "center", padding: "32px 20px", position: "relative" }}>
+            {/* MANNI MODE ONLY: twinkling star in the corner. */}
+            {isManni && <ManniCornerDecor kind="star" corner="top-right" color={colors.accent} />}
+
             <div
               style={{
                 display: "inline-flex",
@@ -616,7 +676,7 @@ export default function Timer({
                 gap: "6px",
                 padding: "6px 14px",
                 borderRadius: "999px",
-                background: "rgba(88, 216, 196, 0.12)",
+                background: theme === "manni" ? colors.accentDim : "rgba(88, 216, 196, 0.12)",
                 color: colors.accent,
                 fontSize: "12px",
                 fontWeight: 800,
@@ -676,7 +736,14 @@ export default function Timer({
                   padding: "10px 6px",
                   borderRadius: "12px",
                   border: timerMode === "custom" ? `1px solid ${colors.accent}` : `1px solid ${colors.border}`,
-                  background: timerMode === "custom" ? (theme === "light" ? "#e3f5f0" : "#19322f") : colors.card,
+                  background:
+                    timerMode === "custom"
+                      ? theme === "light"
+                        ? "#e3f5f0"
+                        : theme === "manni"
+                        ? colors.accentDim
+                        : "#19322f"
+                      : colors.card,
                   color: timerMode === "custom" ? colors.accentSoft : colors.textDim,
                   fontSize: "12px",
                   fontWeight: 800,
@@ -699,7 +766,14 @@ export default function Timer({
                   padding: "10px 6px",
                   borderRadius: "12px",
                   border: timerMode === "pomodoro" ? `1px solid ${colors.accent}` : `1px solid ${colors.border}`,
-                  background: timerMode === "pomodoro" ? (theme === "light" ? "#e3f5f0" : "#19322f") : colors.card,
+                  background:
+                    timerMode === "pomodoro"
+                      ? theme === "light"
+                        ? "#e3f5f0"
+                        : theme === "manni"
+                        ? colors.accentDim
+                        : "#19322f"
+                      : colors.card,
                   color: timerMode === "pomodoro" ? colors.accentSoft : colors.textDim,
                   fontSize: "12px",
                   fontWeight: 800,
@@ -722,7 +796,14 @@ export default function Timer({
                   padding: "10px 6px",
                   borderRadius: "12px",
                   border: timerMode === "sequence" ? `1px solid ${colors.accent}` : `1px solid ${colors.border}`,
-                  background: timerMode === "sequence" ? (theme === "light" ? "#e3f5f0" : "#19322f") : colors.card,
+                  background:
+                    timerMode === "sequence"
+                      ? theme === "light"
+                        ? "#e3f5f0"
+                        : theme === "manni"
+                        ? colors.accentDim
+                        : "#19322f"
+                      : colors.card,
                   color: timerMode === "sequence" ? colors.accentSoft : colors.textDim,
                   fontSize: "12px",
                   fontWeight: 800,
@@ -742,7 +823,10 @@ export default function Timer({
                 MODE A: QUICK CUSTOM TIMER
             ===================== */}
             {timerMode === "custom" && (
-              <section style={styles.timerCard}>
+              <section style={{ ...styles.timerCard, position: "relative" }}>
+                {/* MANNI MODE ONLY: twinkling bow in the corner. */}
+                {isManni && <ManniCornerDecor kind="bow" corner="top-right" color={colors.accent} />}
+
                 <p style={styles.cardLabel}>TASK DETAILS</p>
                 <input
                   type="text"
@@ -767,7 +851,13 @@ export default function Timer({
                           padding: "12px 6px",
                           borderRadius: "12px",
                           border: active ? `1px solid ${colors.accent}` : `1px solid ${colors.border}`,
-                          background: active ? (theme === "light" ? "#e3f5f0" : "#19322f") : colors.cardAlt,
+                          background: active
+                            ? theme === "light"
+                              ? "#e3f5f0"
+                              : theme === "manni"
+                              ? colors.accentDim
+                              : "#19322f"
+                            : colors.cardAlt,
                           color: active ? colors.accent : colors.text,
                           fontWeight: 700,
                           fontSize: "13px",
@@ -866,7 +956,10 @@ export default function Timer({
                 MODE B: POMODORO CYCLES
             ===================== */}
             {timerMode === "pomodoro" && (
-              <section style={styles.timerCard}>
+              <section style={{ ...styles.timerCard, position: "relative" }}>
+                {/* MANNI MODE ONLY: twinkling star in the corner. */}
+                {isManni && <ManniCornerDecor kind="star" corner="top-right" color={colors.accent} />}
+
                 <p style={styles.cardLabel}>SESSION NAME</p>
                 <input
                   type="text"
@@ -1023,7 +1116,10 @@ export default function Timer({
             {timerMode === "sequence" && (
               <>
                 {/* TODAY'S ACTIVE SEQUENCE */}
-                <section style={{ ...styles.timerCard, marginBottom: "16px" }}>
+                <section style={{ ...styles.timerCard, marginBottom: "16px", position: "relative" }}>
+                  {/* MANNI MODE ONLY: twinkling sparkle in the corner. */}
+                  {isManni && <ManniCornerDecor kind="sparkle" corner="top-right" color={colors.accent} />}
+
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
                     <p style={{ ...styles.cardLabel, margin: 0 }}>
                       {viewedSequenceTemplateId && viewedSequenceTemplateId === todaysSequenceTemplateId
@@ -1096,7 +1192,11 @@ export default function Timer({
                                 padding: "10px 14px",
                                 borderRadius: "12px",
                                 background: block.is_break
-                                  ? (theme === "light" ? "#fbf6ec" : "#1a1e16")
+                                  ? theme === "light"
+                                    ? "#fbf6ec"
+                                    : theme === "manni"
+                                    ? "rgba(246, 178, 107, 0.12)"
+                                    : "#1a1e16"
                                   : colors.cardAlt,
                                 border: `1px solid ${block.is_break ? "rgba(232, 196, 104, 0.3)" : colors.border}`,
                                 borderLeft: `4px solid ${blockAccent}`,
@@ -1147,7 +1247,7 @@ export default function Timer({
                                   padding: "6px 12px",
                                   borderRadius: "8px",
                                   background: block.is_break ? colors.warning : colors.accent,
-                                  color: "#071012",
+                                  color: colors.accentText,
                                   border: "none",
                                   fontSize: "12px",
                                   fontWeight: 800,
@@ -1193,7 +1293,10 @@ export default function Timer({
                 </section>
 
                 {/* SEQUENCE TEMPLATES LIBRARY */}
-                <section style={styles.timerCard}>
+                <section style={{ ...styles.timerCard, position: "relative" }}>
+                  {/* MANNI MODE ONLY: twinkling ribbon in the corner. */}
+                  {isManni && <ManniCornerDecor kind="ribbon" corner="top-right" color={colors.accent} />}
+
                   <p style={{ ...styles.cardLabel, marginBottom: "12px" }}>SEQUENCE TEMPLATES</p>
 
                   <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
@@ -1210,7 +1313,7 @@ export default function Timer({
                         padding: "0 16px",
                         borderRadius: "10px",
                         background: colors.accent,
-                        color: "#071012",
+                        color: colors.accentText,
                         border: "none",
                         fontSize: "13px",
                         fontWeight: 800,
@@ -1271,7 +1374,7 @@ export default function Timer({
                                     padding: "0 14px",
                                     borderRadius: "8px",
                                     background: colors.accent,
-                                    color: "#071012",
+                                    color: colors.accentText,
                                     border: "none",
                                     fontWeight: 800,
                                     fontSize: "12px",
@@ -1345,22 +1448,6 @@ export default function Timer({
                                   fontWeight: 700,
                                   cursor: "pointer",
                                 }}
-                                onClick={() => handleStartRenameSequenceTemplate(t)}
-                              >
-                                Rename
-                              </button>
-                              <button
-                                type="button"
-                                style={{
-                                  padding: "6px 12px",
-                                  borderRadius: "8px",
-                                  border: `1px solid ${colors.border}`,
-                                  background: "transparent",
-                                  color: colors.text,
-                                  fontSize: "11px",
-                                  fontWeight: 700,
-                                  cursor: "pointer",
-                                }}
                                 onClick={() => handleDuplicateSequenceTemplate(t.id)}
                               >
                                 Duplicate
@@ -1393,7 +1480,10 @@ export default function Timer({
         )}
 
         {/* FOCUS TIPS */}
-        <div style={{ ...styles.timerInfoCard, marginTop: "16px" }}>
+        <div style={{ ...styles.timerInfoCard, marginTop: "16px", position: "relative" }}>
+          {/* MANNI MODE ONLY: twinkling cloud in the corner. */}
+          {isManni && <ManniCornerDecor kind="cloud" corner="top-right" color={colors.accent} size={22} />}
+
           <p style={styles.cardLabel}>ACCURATE TIMESTAMP ENGINE</p>
           <p style={styles.tipText}>
             All focus periods compute from authoritative target timestamps, ensuring 100% precision even when your screen sleeps or you switch tabs.

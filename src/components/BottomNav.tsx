@@ -1,11 +1,13 @@
 import type { SVGProps } from "react";
 import { AppStyles } from "../hooks/useStyles";
+import { useTheme } from "../context/ThemeContext";
 import {
   HistoryIcon,
   CalendarIcon,
   TimerCircleIcon,
   BookIcon,
   UsersIcon,
+  SparkleIcon,
 } from "./Icons";
 
 interface BottomNavProps {
@@ -43,6 +45,8 @@ const NAV_ITEMS = [
 ];
 
 export default function BottomNav({ page, setPage, styles }: BottomNavProps) {
+  const { theme } = useTheme();
+  const isManni = theme === "manni";
   const isHistoryActive = page === "history" || page === "analytics";
 
   return (
@@ -59,10 +63,54 @@ export default function BottomNav({ page, setPage, styles }: BottomNavProps) {
             style={{
               ...styles.bottomNavItem,
               ...(isActive ? styles.bottomNavItemActive : {}),
+              // MANNI MODE ONLY: floating pill behind the active tab, plus
+              // a tiny lift on the whole button. Light/Dark untouched —
+              // this block only ever contributes styles when isManni is
+              // true, so position/transform/transition are undefined
+              // (i.e. absent) for every other theme, same as before.
+              position: "relative",
+              transform: isManni && isActive ? "translateY(-2px)" : "none",
+              transition: isManni ? "transform 0.25s ease" : undefined,
             }}
           >
-            <Glyph width={18} height={18} />
-            <span>{item.label}</span>
+            {/* MANNI MODE ONLY: soft glowing pill behind the active icon.
+                Purely decorative, absolute-positioned so it never affects
+                layout/spacing of the icon+label below it. */}
+            {isManni && isActive && (
+              <span
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  top: "-2px",
+                  width: "38px",
+                  height: "38px",
+                  borderRadius: "999px",
+                  background: "rgba(244, 143, 177, 0.16)",
+                  boxShadow: "0 0 14px rgba(244, 143, 177, 0.45)",
+                  zIndex: 0,
+                }}
+              />
+            )}
+
+            <span style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Glyph width={18} height={18} />
+              {/* MANNI MODE ONLY: tiny sparkle accent on the active tab. */}
+              {isManni && isActive && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    top: "-6px",
+                    right: "-8px",
+                    color: "#F48FB1",
+                  }}
+                >
+                  <SparkleIcon width={10} height={10} />
+                </span>
+              )}
+            </span>
+
+            <span style={{ position: "relative", zIndex: 1 }}>{item.label}</span>
           </button>
         );
       })}

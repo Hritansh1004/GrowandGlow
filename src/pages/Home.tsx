@@ -48,7 +48,7 @@ export default function Home({ onGetStarted, onLogin }: HomeProps) {
               color: "#071012",
             }}
           >
-            B
+            G
           </div>
           <span
             style={{
@@ -58,7 +58,7 @@ export default function Home({ onGetStarted, onLogin }: HomeProps) {
               color: "#a9e8dc",
             }}
           >
-            Benchmate
+            Grow & Glow
           </span>
         </div>
 

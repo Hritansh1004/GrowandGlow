@@ -1,3 +1,4 @@
+// src/pages/Settings.tsx
 import { useState, useRef, type FormEvent } from "react";
 import { AppStyles } from "../hooks/useStyles";
 import useAlarms from "../hooks/useAlarms";
@@ -12,7 +13,9 @@ import {
   CheckIcon,
   PencilIcon,
   LockIcon,
+  SparkleIcon,
 } from "../components/Icons";
+import { ManniAmbientBackground, ManniCornerDecor } from "../components/ManniEffects";
 
 interface SettingsProps {
   user: any;
@@ -24,115 +27,16 @@ interface SettingsProps {
   styles: AppStyles;
 }
 
-const SUPABASE_SQL_MIGRATION = `-- =========================================================
--- BENCHMATE SUPABASE DATABASE MIGRATION SCRIPT
--- Paste and run this in your Supabase SQL Editor:
--- =========================================================
-
--- 1. Profiles Table
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  username TEXT UNIQUE NOT NULL,
-  display_name TEXT NOT NULL,
-  avatar_url TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 2. Alarms & Custom Bell Sounds Table
-CREATE TABLE IF NOT EXISTS public.alarms (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  storage_path TEXT NOT NULL,
-  is_builtin BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 3. Timetable Templates Table (Save & Reuse Schedules)
-CREATE TABLE IF NOT EXISTS public.timetable_templates (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  description TEXT,
-  category TEXT DEFAULT 'Custom',
-  is_active BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 4. Template Periods Table
-CREATE TABLE IF NOT EXISTS public.template_periods (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  template_id UUID REFERENCES public.timetable_templates(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  subject TEXT NOT NULL,
-  start_time TIME NOT NULL,
-  end_time TIME NOT NULL,
-  alarm_id TEXT,
-  order_index INT DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 5. Daily Ratings & Task Evaluations (1 to 10 scale)
-CREATE TABLE IF NOT EXISTS public.daily_ratings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  date DATE NOT NULL,
-  period_id TEXT,
-  task_id TEXT,
-  rating_type TEXT DEFAULT 'day', -- 'day', 'period', 'task'
-  rating INT NOT NULL CHECK (rating >= 1 AND rating <= 10),
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 6. Planner Tasks Table
-CREATE TABLE IF NOT EXISTS public.planner_tasks (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  subject TEXT NOT NULL,
-  date DATE NOT NULL,
-  start_time TIME,
-  end_time TIME,
-  completed BOOLEAN DEFAULT false,
-  alarm_id TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 7. Study Rooms (Multiplayer / Friends Study)
-CREATE TABLE IF NOT EXISTS public.study_rooms (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  host_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  subject TEXT,
-  code TEXT UNIQUE NOT NULL,
-  current_period_title TEXT,
-  timer_state TEXT DEFAULT 'idle',
-  timer_duration_seconds INT DEFAULT 1500,
-  timer_ends_at TIMESTAMPTZ,
-  active_template_id UUID,
-  timetable_json JSONB,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 8. Enable Row Level Security (RLS)
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.alarms ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.timetable_templates ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.template_periods ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.daily_ratings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.planner_tasks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.study_rooms ENABLE ROW LEVEL SECURITY;
-
--- 9. Basic RLS Policies
-CREATE POLICY "Users can access their own profiles" ON public.profiles FOR ALL USING (auth.uid() = id);
-CREATE POLICY "Users can access their alarms" ON public.alarms FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Users can access their templates" ON public.timetable_templates FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Users can access their template periods" ON public.template_periods FOR ALL USING (true);
-CREATE POLICY "Users can access their daily ratings" ON public.daily_ratings FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Users can access their tasks" ON public.planner_tasks FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Users can access study rooms" ON public.study_rooms FOR ALL USING (true);
-`;
+// Display labels for each theme preference. Kept as an explicit map
+// (rather than relying on textTransform: capitalize on the raw key)
+// so "manni" can render as the full "Manni Mode" label per spec instead
+// of just "Manni".
+const THEME_LABELS: Record<"dark" | "light" | "system" | "manni", string> = {
+  dark: "Dark",
+  light: "Light",
+  system: "System",
+  manni: "Manni Mode",
+};
 
 export default function Settings({
   user,
@@ -155,11 +59,16 @@ export default function Settings({
     alarmsMessage,
   } = useAlarms(user?.id);
 
+  // MANNI MODE ONLY: everything gated behind this flag is purely additive.
+  // Light/Dark render exactly the JSX/styles they always have — this flag
+  // is false for both, so none of the Manni-only branches below ever run
+  // for them. Same pattern as Dashboard.tsx / Timer.tsx / Routine.tsx /
+  // BottomNav.tsx.
+  const isManni = theme === "manni";
+
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [customSoundName, setCustomSoundName] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [sqlCopied, setSqlCopied] = useState(false);
-  const [showSqlAccordion, setShowSqlAccordion] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Change Password (for already-logged-in users). This is separate from
@@ -188,12 +97,6 @@ export default function Settings({
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function handleCopySql() {
-    navigator.clipboard.writeText(SUPABASE_SQL_MIGRATION);
-    setSqlCopied(true);
-    setTimeout(() => setSqlCopied(false), 2500);
-  }
-
   async function handleChangePassword(e: FormEvent) {
     e.preventDefault();
     setChangePasswordMessage("");
@@ -216,8 +119,21 @@ export default function Settings({
     }
   }
   return (
-    <div style={{ ...styles.page, background: colors.bg, color: colors.text }}>
-      <main style={styles.dashboard}>
+    <div
+      style={{
+        ...styles.page,
+        // MANNI MODE ONLY: soft blush gradient instead of the flat bg.
+        // Light/Dark keep the exact same solid colors.bg they always had.
+        background: isManni && colors.bgGradient ? colors.bgGradient : colors.bg,
+        color: colors.text,
+        position: "relative",
+      }}
+    >
+      {/* MANNI MODE ONLY: slow-drifting hearts/sparkles/stars behind all
+          page content. Renders nothing for Light/Dark. */}
+      {isManni && <ManniAmbientBackground />}
+
+      <main style={{ ...styles.dashboard, position: "relative", zIndex: 1 }}>
         {/* BACK TO DASHBOARD */}
         <button
           type="button"
@@ -231,24 +147,49 @@ export default function Settings({
         {/* HEADER */}
         <div style={styles.timerHeader}>
           <p style={{ ...styles.eyebrow, color: colors.accent }}>PREFERENCES</p>
-          <h1 style={{ ...styles.routineTitle, color: colors.text }}>Settings & Audio</h1>
+          <h1
+            style={{
+              ...styles.routineTitle,
+              color: colors.text,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            Settings & Audio
+            {/* MANNI MODE ONLY: small sparkle accent next to the title. */}
+            {isManni && (
+              <span style={{ color: colors.accent, display: "inline-flex" }} aria-hidden="true">
+                <SparkleIcon width={16} height={16} />
+              </span>
+            )}
+          </h1>
           <p style={{ ...styles.cardText, color: colors.textDim }}>
             Audio tones, theme preferences, custom bells, and database configuration.
           </p>
         </div>
 
         {/* APPEARANCE / THEME */}
-        <section style={{ ...styles.timerCard, background: colors.card, border: `1px solid ${colors.border}`, marginBottom: "16px" }}>
+        <section style={{ ...styles.timerCard, position: "relative", background: colors.card, border: `1px solid ${colors.border}`, marginBottom: "16px" }}>
+          {/* MANNI MODE ONLY: twinkling bow in the corner. */}
+          {isManni && <ManniCornerDecor kind="bow" corner="top-right" color={colors.accent} />}
+
           <p style={{ ...styles.cardLabel, color: colors.accent }}>APPEARANCE</p>
-          <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
-            {(["dark", "light", "system"] as const).map((mode) => {
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "8px",
+              marginTop: "10px",
+            }}
+          >
+            {(["dark", "light", "system", "manni"] as const).map((mode) => {
               const active = themePreference === mode;
               return (
                 <button
                   key={mode}
                   type="button"
                   style={{
-                    flex: 1,
                     padding: "10px",
                     borderRadius: "12px",
                     border: active ? `1px solid ${colors.accent}` : `1px solid ${colors.border}`,
@@ -256,12 +197,11 @@ export default function Settings({
                     color: active ? colors.accent : colors.textDim,
                     fontSize: "13px",
                     fontWeight: 700,
-                    textTransform: "capitalize",
                     cursor: "pointer",
                   }}
                   onClick={() => setThemePreference(mode)}
                 >
-                  {mode}
+                  {THEME_LABELS[mode]}
                 </button>
               );
             })}
@@ -269,7 +209,10 @@ export default function Settings({
         </section>
 
         {/* CUSTOM BELL & ALARM SOUND UPLOADER */}
-        <section style={{ ...styles.timerCard, background: colors.card, border: `1px solid ${colors.border}`, marginBottom: "16px" }}>
+        <section style={{ ...styles.timerCard, position: "relative", background: colors.card, border: `1px solid ${colors.border}`, marginBottom: "16px" }}>
+          {/* MANNI MODE ONLY: twinkling sparkle in the corner. */}
+          {isManni && <ManniCornerDecor kind="sparkle" corner="top-right" color={colors.accent} />}
+
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
             <VolumeIcon width={18} height={18} />
             <p style={{ ...styles.cardLabel, color: colors.accent, margin: 0 }}>
@@ -416,7 +359,10 @@ export default function Settings({
         </section>
 
         {/* BUILT-IN ALARM SOUNDS */}
-        <section style={{ ...styles.timerCard, background: colors.card, border: `1px solid ${colors.border}`, marginBottom: "16px" }}>
+        <section style={{ ...styles.timerCard, position: "relative", background: colors.card, border: `1px solid ${colors.border}`, marginBottom: "16px" }}>
+          {/* MANNI MODE ONLY: twinkling star in the corner. */}
+          {isManni && <ManniCornerDecor kind="star" corner="top-right" color={colors.accent} />}
+
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
             <VolumeIcon width={18} height={18} />
             <p style={{ ...styles.cardLabel, color: colors.accent, margin: 0 }}>
@@ -470,77 +416,11 @@ export default function Settings({
           </div>
         </section>
 
-        {/* SUPABASE SQL MIGRATION TOOL */}
-        <section style={{ ...styles.timerCard, background: colors.card, border: `1px solid ${colors.border}`, marginBottom: "16px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-            <p style={{ ...styles.cardLabel, color: colors.accent, margin: 0 }}>
-              DATABASE SQL SCHEMA & MIGRATION
-            </p>
-            <button
-              type="button"
-              onClick={handleCopySql}
-              style={{
-                padding: "6px 12px",
-                borderRadius: "8px",
-                border: "none",
-                background: sqlCopied ? "#19322f" : colors.accent,
-                color: sqlCopied ? "#58d8c4" : colors.accentText,
-                fontSize: "12px",
-                fontWeight: 800,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-              }}
-            >
-              {sqlCopied ? <CheckIcon width={12} height={12} /> : null}
-              {sqlCopied ? "Copied SQL!" : "Copy SQL Script"}
-            </button>
-          </div>
-
-          <p style={{ fontSize: "13px", color: colors.textDim, marginBottom: "12px" }}>
-            Click below to inspect or copy the exact SQL schema to run in your Supabase SQL Editor.
-          </p>
-
-          <button
-            type="button"
-            onClick={() => setShowSqlAccordion((prev) => !prev)}
-            style={{
-              padding: "8px 12px",
-              borderRadius: "10px",
-              border: `1px solid ${colors.border}`,
-              background: colors.cardAlt,
-              color: colors.text,
-              fontSize: "12px",
-              fontWeight: 700,
-              cursor: "pointer",
-              marginBottom: showSqlAccordion ? "10px" : "0",
-            }}
-          >
-            {showSqlAccordion ? "Hide SQL Script ▲" : "View SQL Script ▼"}
-          </button>
-
-          {showSqlAccordion && (
-            <pre
-              style={{
-                padding: "12px",
-                borderRadius: "12px",
-                background: colors.bgAlt,
-                border: `1px solid ${colors.border}`,
-                color: colors.textDim,
-                fontSize: "11px",
-                fontFamily: "monospace",
-                overflowX: "auto",
-                maxHeight: "220px",
-              }}
-            >
-              {SUPABASE_SQL_MIGRATION}
-            </pre>
-          )}
-        </section>
-
         {/* ACCOUNT INFO */}
-        <section style={{ ...styles.timerCard, background: colors.card, border: `1px solid ${colors.border}`, marginBottom: "16px" }}>
+        <section style={{ ...styles.timerCard, position: "relative", background: colors.card, border: `1px solid ${colors.border}`, marginBottom: "16px" }}>
+          {/* MANNI MODE ONLY: twinkling heart in the corner. */}
+          {isManni && <ManniCornerDecor kind="heart" corner="top-right" color={colors.accent} />}
+
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <p style={{ ...styles.cardLabel, color: colors.accent, margin: 0 }}>ACCOUNT</p>
             <button
@@ -583,7 +463,10 @@ export default function Settings({
         </section>
 
         {/* CHANGE PASSWORD */}
-        <section style={{ ...styles.timerCard, background: colors.card, border: `1px solid ${colors.border}`, marginBottom: "16px" }}>
+        <section style={{ ...styles.timerCard, position: "relative", background: colors.card, border: `1px solid ${colors.border}`, marginBottom: "16px" }}>
+          {/* MANNI MODE ONLY: twinkling ribbon in the corner. */}
+          {isManni && <ManniCornerDecor kind="ribbon" corner="top-right" color={colors.accent} />}
+
           <div
             style={{
               display: "flex",
@@ -685,7 +568,7 @@ export default function Settings({
           style={{ ...styles.secondary, color: colors.danger, border: `1px solid ${colors.danger}40`, background: colors.card }}
           onClick={logout}
         >
-          Log Out of Benchmate
+          Log Out of Grow & Glow
         </button>
       </main>
     </div>

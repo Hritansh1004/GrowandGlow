@@ -388,3 +388,68 @@ export function PencilIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/* =========================================================
+   MANNI MODE — decorative icons (Phase 1)
+
+   Pure SVG, no emojis (Rule 3). These are purely ornamental —
+   small accent glyphs sprinkled onto cards/headers/empty-states
+   when theme === "manni". Call sites are responsible for only
+   rendering these under Manni Mode; the icons themselves are
+   theme-agnostic (styled via `color`/`currentColor` like every
+   other icon in this file).
+========================================================= */
+
+export function BowIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M12 12c-1.5-3-4.5-5-7.5-4C2 8.7 2 12 4.5 13.2c2.6 1.2 5.9-.1 7.5-1.2z" />
+      <path d="M12 12c1.5-3 4.5-5 7.5-4 2.5.7 2.5 4 0 5.2-2.6 1.2-5.9-.1-7.5-1.2z" />
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
+      <path d="M11 13.2L8.5 19" />
+      <path d="M13 13.2l2.5 5.8" />
+    </svg>
+  );
+}
+
+export function HeartIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M12 20.6l-1.4-1.3C5.6 14.9 2 11.6 2 7.7 2 4.8 4.2 2.6 7 2.6c1.6 0 3.1.8 4 2 .9-1.2 2.4-2 4-2 2.8 0 5 2.2 5 5.1 0 3.9-3.6 7.2-8.6 11.6l-1.4 1.3z" />
+    </svg>
+  );
+}
+
+export function SparkleIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M12 2c.6 3.8 1.8 6.4 3.7 8.3S20 13.4 22 14c-3.8.6-6.4 1.8-8.3 3.7S10.6 21.4 10 23c-.6-3.8-1.8-6.4-3.7-8.3S2 13.6 0 13c3.8-.6 6.4-1.8 8.3-3.7S11.4.6 12 2z" transform="translate(1 -1) scale(0.92)" />
+    </svg>
+  );
+}
+
+export function StarIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M12 2l2.6 6.6L21.5 9l-5.3 4.5L18 20l-6-3.9L6 20l1.8-6.5L2.5 9l6.9-.4z" />
+    </svg>
+  );
+}
+
+export function CloudIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M6.5 18a4 4 0 0 1-.5-8 5 5 0 0 1 9.7-1.7A4.5 4.5 0 0 1 18.5 18h-12z" />
+      <circle cx="8.7" cy="14.3" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="11.5" cy="13.4" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function RibbonIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="8" r="4.5" />
+      <path d="M9 11.5L6.5 21l5.5-3 5.5 3-2.5-9.5" />
+    </svg>
+  );
+}

@@ -8,7 +8,9 @@ import {
   TimerCircleIcon,
   CalendarIcon,
   UsersIcon,
+  HeartIcon,
 } from "../components/Icons";
+import { ManniAmbientBackground, ManniCornerDecor } from "../components/ManniEffects";
 import AvatarDisplay from "../components/AvatarDisplay";
 interface DashboardProps {
   profile: any;
@@ -45,6 +47,12 @@ export default function Dashboard({
   const { theme } = useTheme();
   const colors = getThemeColors(theme);
   const { unreadCount } = useNotifications(user?.id);
+
+  // MANNI MODE ONLY: everything gated behind this flag is purely additive.
+  // Light/Dark render exactly the JSX/styles they always have — this flag
+  // is false for both, so none of the Manni-only branches below ever run
+  // for them.
+  const isManni = theme === "manni";
 
   const totalToday = todayTasks.length;
   const completedToday = completedTodayTasks.length;
@@ -89,8 +97,21 @@ export default function Dashboard({
   const isActive = Boolean(currentRoutineItem && currentRoutineItem.type !== "Break");
 
   return (
-    <div style={{ ...styles.page, background: colors.bg, color: colors.text }}>
-      <main style={styles.dashboard}>
+    <div
+      style={{
+        ...styles.page,
+        // MANNI MODE ONLY: soft blush gradient instead of the flat bg.
+        // Light/Dark keep the exact same solid colors.bg they always had.
+        background: isManni && colors.bgGradient ? colors.bgGradient : colors.bg,
+        color: colors.text,
+        position: "relative",
+      }}
+    >
+      {/* MANNI MODE ONLY: slow-drifting hearts/sparkles/stars behind all
+          page content. Renders nothing for Light/Dark. */}
+      {isManni && <ManniAmbientBackground />}
+
+      <main style={{ ...styles.dashboard, position: "relative", zIndex: 1 }}>
         {/* TOP BAR */}
         <div style={styles.topBar}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -104,7 +125,23 @@ export default function Dashboard({
             />
             <div>
               <p style={{ ...styles.eyebrow, color: colors.accent }}>{greeting.toUpperCase()}</p>
-              <h1 style={{ ...styles.dashboardTitle, color: colors.text }}>{profile?.display_name || "there"}</h1>
+              <h1
+                style={{
+                  ...styles.dashboardTitle,
+                  color: colors.text,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                {profile?.display_name || "there"}
+                {/* MANNI MODE ONLY: small heart accent next to the name. */}
+                {isManni && (
+                  <span style={{ color: colors.accent, display: "inline-flex" }} aria-hidden="true">
+                    <HeartIcon width={16} height={16} />
+                  </span>
+                )}
+              </h1>
             </div>
           </div>
 
@@ -169,9 +206,12 @@ export default function Dashboard({
         {/* LIVE CLOCK + STATUS — background/border/glow follow the
             current routine item's own chosen color when it has one,
             otherwise the existing teal default (see getColorGradient
-            in theme.ts) */}
+            in theme.ts). getColorGradient already branches internally
+            on `theme`, so the Manni pastel treatment here is automatic
+            and required no changes in this file. */}
         <div
           style={{
+            position: "relative",
             padding: "26px 24px",
             marginBottom: "14px",
             borderRadius: "26px",
@@ -186,6 +226,9 @@ export default function Dashboard({
               : "none",
           }}
         >
+          {/* MANNI MODE ONLY: twinkling bow tucked in the corner. */}
+          {isManni && <ManniCornerDecor kind="bow" corner="top-right" color={colors.accent} />}
+
           <div
             style={{
               display: "flex",
@@ -265,6 +308,7 @@ export default function Dashboard({
         {/* TODAY'S PROGRESS */}
         <div
           style={{
+            position: "relative",
             marginBottom: "14px",
             padding: "22px",
             borderRadius: "22px",
@@ -272,6 +316,9 @@ export default function Dashboard({
             border: `1px solid ${colors.border}`,
           }}
         >
+          {/* MANNI MODE ONLY: twinkling sparkle in the corner. */}
+          {isManni && <ManniCornerDecor kind="sparkle" corner="top-right" color={colors.accent} />}
+
           <div
             style={{
               display: "flex",
@@ -324,6 +371,7 @@ export default function Dashboard({
         {/* NEXT PLANNER TASK */}
         <div
           style={{
+            position: "relative",
             marginBottom: "14px",
             padding: "22px",
             borderRadius: "22px",
@@ -334,10 +382,17 @@ export default function Dashboard({
             boxShadow: nextPlannerTask
               ? theme === "light"
                 ? "0 12px 40px rgba(24, 138, 117, 0.05)"
+                : theme === "manni"
+                ? `0 12px 40px ${colors.borderGlow || "rgba(244, 143, 177, 0.2)"}`
                 : "0 12px 40px rgba(88, 216, 196, 0.06)"
               : "none",
           }}
         >
+          {/* MANNI MODE ONLY: heart in the corner when there's an upcoming task. */}
+          {isManni && nextPlannerTask && (
+            <ManniCornerDecor kind="heart" corner="top-right" color={colors.accent} />
+          )}
+
           <p style={{ ...styles.cardLabel, color: colors.textDim }}>NEXT UP</p>
 
           {nextPlannerTask ? (
@@ -461,7 +516,7 @@ export default function Dashboard({
             <span style={{ color: colors.accent, marginBottom: "4px" }}>
               <UsersIcon width={22} height={22} />
             </span>
-            <strong style={{ color: colors.text }}>Benchmates</strong>
+            <strong style={{ color: colors.text }}>Friends</strong>
             <small style={{ color: colors.textDim }}>Study together</small>
           </button>
         </div>
@@ -474,10 +529,14 @@ export default function Dashboard({
         <div
           style={{
             ...styles.welcomeCard,
+            position: "relative",
             background: colors.card,
             border: `1px solid ${colors.border}`,
           }}
         >
+          {/* MANNI MODE ONLY: twinkling star in the corner. */}
+          {isManni && <ManniCornerDecor kind="star" corner="top-right" color={colors.accent} />}
+
           <p style={{ ...styles.cardLabel, color: colors.textDim }}>PROFILE</p>
           <div style={{ display: "flex", alignItems: "center", gap: "14px", marginTop: "8px" }}>
             <AvatarDisplay

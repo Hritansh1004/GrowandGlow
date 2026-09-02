@@ -40,8 +40,8 @@ export default function Signup({
   return (
     <div style={styles.page}>
       <main style={styles.authCard}>
-        <div style={styles.logo}>B</div>
-        <p style={styles.eyebrow}>BENCHMATE</p>
+        <div style={styles.logo}>G</div>
+        <p style={styles.eyebrow}>GROW & GLOW</p>
         <h1 style={styles.authTitle}>Create your account</h1>
         <p style={styles.cardText}>Start your study journey.</p>
 

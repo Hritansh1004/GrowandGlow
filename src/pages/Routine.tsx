@@ -13,7 +13,9 @@ import {
   TrashIcon,
   SaveIcon,
   XIcon,
+  SparkleIcon,
 } from "../components/Icons";
+import { ManniAmbientBackground, ManniCornerDecor } from "../components/ManniEffects";
 import RatingModal from "../components/RatingModal";
 import type { RoutineItem } from "../hooks/useRoutine";
 
@@ -88,6 +90,12 @@ export default function Routine({
   const { theme } = useTheme();
   const colors = getThemeColors(theme);
   const { allAlarms, playAlarm } = useAlarms(user?.id);
+
+  // MANNI MODE ONLY: everything gated behind this flag is purely additive.
+  // Light/Dark render exactly the JSX/styles they always have — this flag
+  // is false for both, so none of the Manni-only branches below ever run
+  // for them. Same pattern as Dashboard.tsx / Timer.tsx / BottomNav.tsx.
+  const isManni = theme === "manni";
 
   const [editingItem, setEditingItem] = useState<RoutineItem | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -216,8 +224,22 @@ export default function Routine({
   }
 
   return (
-    <div style={{ ...styles.page, background: colors.bg, color: colors.text, minHeight: "100vh" }}>
-      <main style={{ ...styles.dashboard, maxWidth: "680px", margin: "0 auto" }}>
+    <div
+      style={{
+        ...styles.page,
+        // MANNI MODE ONLY: soft blush gradient instead of the flat bg.
+        // Light/Dark keep the exact same solid colors.bg they always had.
+        background: isManni && colors.bgGradient ? colors.bgGradient : colors.bg,
+        color: colors.text,
+        minHeight: "100vh",
+        position: "relative",
+      }}
+    >
+      {/* MANNI MODE ONLY: slow-drifting hearts/sparkles/stars behind all
+          page content. Renders nothing for Light/Dark. */}
+      {isManni && <ManniAmbientBackground />}
+
+      <main style={{ ...styles.dashboard, maxWidth: "680px", margin: "0 auto", position: "relative", zIndex: 1 }}>
         <button
           type="button"
           style={{
@@ -237,7 +259,23 @@ export default function Routine({
 
         <div style={{ marginBottom: "24px" }}>
           <p style={{ ...styles.eyebrow, color: colors.accent }}>TODAY'S ROUTINE</p>
-          <h1 style={{ ...styles.routineTitle, color: colors.text }}>{todayLabel}</h1>
+          <h1
+            style={{
+              ...styles.routineTitle,
+              color: colors.text,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            {todayLabel}
+            {/* MANNI MODE ONLY: small sparkle accent next to the title. */}
+            {isManni && (
+              <span style={{ color: colors.accent, display: "inline-flex" }} aria-hidden="true">
+                <SparkleIcon width={16} height={16} />
+              </span>
+            )}
+          </h1>
           <p style={{ ...styles.cardText, color: colors.textDim }}>
             {routineLoading ? "Loading your routine..." : routineLabel || "Your timetable for today."}
           </p>
@@ -267,6 +305,7 @@ export default function Routine({
         ) : isHoliday && routine.length === 0 ? (
           <div
             style={{
+              position: "relative",
               padding: "32px 24px",
               marginBottom: "18px",
               borderRadius: "22px",
@@ -275,6 +314,9 @@ export default function Routine({
               textAlign: "center",
             }}
           >
+            {/* MANNI MODE ONLY: twinkling cloud in the corner. */}
+            {isManni && <ManniCornerDecor kind="cloud" corner="top-right" color={colors.accent} />}
+
             <div style={{ display: "flex", justifyContent: "center", marginBottom: "14px", color: colors.accent }}>
               <CoffeeIcon width={32} height={32} />
             </div>
@@ -290,6 +332,7 @@ export default function Routine({
                 existing teal default (see getColorGradient in theme.ts) */}
             <div
               style={{
+                position: "relative",
                 marginBottom: "16px",
                 padding: "24px",
                 borderRadius: "24px",
@@ -304,6 +347,9 @@ export default function Routine({
                   : "none",
               }}
             >
+              {/* MANNI MODE ONLY: twinkling bow tucked in the corner. */}
+              {isManni && <ManniCornerDecor kind="bow" corner="top-right" color={colors.accent} />}
+
               <p style={{ ...styles.cardLabel, color: colors.textDim }}>
                 {currentRoutineItem ? "CURRENTLY" : "CURRENT STATUS"}
               </p>
@@ -380,6 +426,7 @@ export default function Routine({
             {nextRoutineItem && !isComplete && (
               <div
                 style={{
+                  position: "relative",
                   marginBottom: "18px",
                   padding: "22px",
                   borderRadius: "22px",
@@ -387,6 +434,9 @@ export default function Routine({
                   border: `1px solid ${colors.border}`,
                 }}
               >
+                {/* MANNI MODE ONLY: twinkling sparkle in the corner. */}
+                {isManni && <ManniCornerDecor kind="sparkle" corner="top-right" color={colors.accent} />}
+
                 <p style={{ ...styles.cardLabel, color: colors.textDim }}>UP NEXT</p>
 
                 <div
@@ -442,6 +492,7 @@ export default function Routine({
             {isEmpty && (
               <div
                 style={{
+                  position: "relative",
                   padding: "32px 22px",
                   marginBottom: "18px",
                   borderRadius: "22px",
@@ -450,6 +501,9 @@ export default function Routine({
                   textAlign: "center",
                 }}
               >
+                {/* MANNI MODE ONLY: twinkling cloud in the corner. */}
+                {isManni && <ManniCornerDecor kind="cloud" corner="top-right" color={colors.accent} />}
+
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: "14px", color: colors.accent }}>
                   <CalendarIcon width={30} height={30} />
                 </div>
@@ -471,6 +525,7 @@ export default function Routine({
             {routine.length > 0 && (
               <div
                 style={{
+                  position: "relative",
                   marginBottom: "18px",
                   padding: "22px",
                   borderRadius: "22px",
@@ -478,6 +533,9 @@ export default function Routine({
                   border: `1px solid ${colors.border}`,
                 }}
               >
+                {/* MANNI MODE ONLY: twinkling ribbon in the corner. */}
+                {isManni && <ManniCornerDecor kind="ribbon" corner="top-right" color={colors.accent} />}
+
                 <div
                   style={{
                     display: "flex",
