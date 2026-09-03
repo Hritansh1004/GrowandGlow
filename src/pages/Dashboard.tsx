@@ -112,37 +112,32 @@ export default function Dashboard({
       {isManni && <ManniAmbientBackground />}
 
       <main style={{ ...styles.dashboard, position: "relative", zIndex: 1 }}>
-        {/* TOP BAR */}
-        <div style={styles.topBar}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <AvatarDisplay
-              avatarUrl={profile?.avatar_url}
-              name={profile?.display_name}
-              size={44}
-              background={colors.accentDim}
-              color={colors.accent}
-              border={`1px solid ${colors.border}`}
+        {/* BRAND NAV BAR */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "28px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+            <img
+              src={theme === "dark" ? "/Logo.png" : "/Logo1.png"}
+              alt="Grow & Glow logo"
+              style={{ width: "26px", height: "26px", objectFit: "contain", flexShrink: 0 }}
             />
-            <div>
-              <p style={{ ...styles.eyebrow, color: colors.accent }}>{greeting.toUpperCase()}</p>
-              <h1
-                style={{
-                  ...styles.dashboardTitle,
-                  color: colors.text,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                }}
-              >
-                {profile?.display_name || "there"}
-                {/* MANNI MODE ONLY: small heart accent next to the name. */}
-                {isManni && (
-                  <span style={{ color: colors.accent, display: "inline-flex" }} aria-hidden="true">
-                    <HeartIcon width={16} height={16} />
-                  </span>
-                )}
-              </h1>
-            </div>
+            <span
+              style={{
+                fontSize: "13px",
+                fontWeight: 800,
+                letterSpacing: "1.5px",
+                textTransform: "uppercase",
+                color: colors.text,
+              }}
+            >
+              Grow <span style={{ color: colors.accent }}>&amp; Glow</span>
+            </span>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
@@ -200,6 +195,41 @@ export default function Dashboard({
             >
               Logout
             </button>
+          </div>
+        </div>
+
+        {/* TOP BAR */}
+        <div style={{ ...styles.topBar, marginBottom: "20px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <AvatarDisplay
+              avatarUrl={profile?.avatar_url}
+              name={profile?.display_name}
+              size={54}
+              background={colors.accentDim}
+              color={colors.accent}
+              border={`1px solid ${colors.border}`}
+            />
+            <div>
+              <p style={{ ...styles.eyebrow, color: colors.accent, margin: "0 0 3px" }}>{greeting.toUpperCase()}</p>
+              <h1
+                style={{
+                  ...styles.dashboardTitle,
+                  color: colors.text,
+                  margin: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                {profile?.display_name || "there"}
+                {/* MANNI MODE ONLY: small heart accent next to the name. */}
+                {isManni && (
+                  <span style={{ color: colors.accent, display: "inline-flex" }} aria-hidden="true">
+                    <HeartIcon width={16} height={16} />
+                  </span>
+                )}
+              </h1>
+            </div>
           </div>
         </div>
 
@@ -547,10 +577,20 @@ export default function Dashboard({
               color={colors.accent}
               border={`1px solid ${colors.border}`}
             />
-            <div>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <p style={{ ...styles.profileName, color: colors.text, margin: "0 0 2px" }}>{profile?.display_name}</p>
               <p style={{ ...styles.username, color: colors.accent, margin: "0 0 2px" }}>@{profile?.username}</p>
-              <p style={{ ...styles.cardText, marginBottom: 0, color: colors.textDim }}>{user?.email}</p>
+              <p
+                style={{
+                  ...styles.cardText,
+                  marginBottom: 0,
+                  color: colors.textDim,
+                  wordBreak: "break-word",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {user?.email}
+              </p>
             </div>
           </div>
         </div>

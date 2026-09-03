@@ -108,13 +108,7 @@ export default function useStyles(): AppStyles {
         height: "64px",
         margin: "0 auto 20px",
         borderRadius: radius.md,
-        background: `linear-gradient(135deg, ${colors.accent}, #319bd8)`,
-        color: "#071012",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        fontSize: "32px",
-        fontWeight: 900,
+        objectFit: "contain",
       },
 
       eyebrow: {

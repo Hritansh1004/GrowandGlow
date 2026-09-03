@@ -15,6 +15,7 @@ export interface UserProfile {
 export default function useAuth() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Set to true the moment Supabase fires the PASSWORD_RECOVERY event —
@@ -42,10 +43,11 @@ export default function useAuth() {
 
       if (error) {
         console.error("Profile loading error:", error);
-        setProfile(null);
+        setProfileError(error.message);
         return;
       }
 
+      setProfileError(null);
       setProfile(data || null);
     }
 
@@ -76,6 +78,7 @@ export default function useAuth() {
         await loadProfile(currentUser.id);
       } else {
         setProfile(null);
+        setProfileError(null);
         setIsPasswordRecovery(false);
       }
 
@@ -99,9 +102,11 @@ export default function useAuth() {
 
     if (error) {
       console.error("Profile refresh error:", error);
+      setProfileError(error.message);
       return null;
     }
 
+    setProfileError(null);
     if (data) {
       setProfile(data);
       return data;
@@ -143,6 +148,7 @@ export default function useAuth() {
     }
     setUser(null);
     setProfile(null);
+    setProfileError(null);
     setIsPasswordRecovery(false);
     return true;
   }
@@ -284,6 +290,7 @@ export default function useAuth() {
   return {
     user,
     profile,
+    profileError,
     loading,
     isPasswordRecovery,
     signup,

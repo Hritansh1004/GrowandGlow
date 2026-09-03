@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { AppStyles } from "../hooks/useStyles";
+import { useTheme } from "../context/ThemeContext";
 
 interface SignupProps {
   email: string;
@@ -27,6 +28,8 @@ export default function Signup({
   styles,
 }: SignupProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const { theme } = useTheme();
+  const logoSrc = theme === "dark" ? "/Logo.png" : "/Logo1.png";
 
   const passwordStrength =
     password.length === 0
@@ -40,7 +43,7 @@ export default function Signup({
   return (
     <div style={styles.page}>
       <main style={styles.authCard}>
-        <div style={styles.logo}>G</div>
+        <img src={logoSrc} alt="Grow & Glow logo" style={styles.logo} />
         <p style={styles.eyebrow}>GROW & GLOW</p>
         <h1 style={styles.authTitle}>Create your account</h1>
         <p style={styles.cardText}>Start your study journey.</p>

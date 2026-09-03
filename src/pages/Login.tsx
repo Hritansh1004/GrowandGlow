@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { AppStyles } from "../hooks/useStyles";
+import { useTheme } from "../context/ThemeContext";
 
 interface LoginProps {
   email: string;
@@ -27,11 +28,13 @@ export default function Login({
   styles,
 }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const { theme } = useTheme();
+  const logoSrc = theme === "dark" ? "/Logo.png" : "/Logo1.png";
 
   return (
     <div style={styles.page}>
       <main style={styles.authCard}>
-        <div style={styles.logo}>G</div>
+        <img src={logoSrc} alt="Grow & Glow logo" style={styles.logo} />
         <p style={styles.eyebrow}>GROW & GLOW</p>
         <h1 style={styles.authTitle}>Welcome back</h1>
         <p style={styles.cardText}>Log in to continue your study journey.</p>

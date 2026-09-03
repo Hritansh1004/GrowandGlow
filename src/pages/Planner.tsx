@@ -478,7 +478,7 @@ export default function Planner({
               </p>
             </div>
 
-            <div style={{ display: "flex", gap: "8px", flexShrink: 0, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: "8px", width: "100%", flexWrap: "wrap" }}>
               <button
                 type="button"
                 style={{

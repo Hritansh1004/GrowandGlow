@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { AppStyles } from "../hooks/useStyles";
 import { CameraIcon, PencilIcon } from "../components/Icons";
 import { AVATAR_PRESETS, getAvatarPreset } from "../components/AvatarPresets";
+import { useTheme } from "../context/ThemeContext";
 
 interface ProfileProps {
   mode: "onboarding" | "edit";
@@ -42,6 +43,8 @@ export default function Profile({
   const [uploadError, setUploadError] = useState("");
   const [showPresetPicker, setShowPresetPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { theme } = useTheme();
+  const logoSrc = theme === "dark" ? "/Logo.png" : "/Logo1.png";
 
   const presetMatch = getAvatarPreset(avatarUrl);
   // A real uploaded photo is any avatarUrl that isn't a "preset:xxx"
@@ -81,7 +84,7 @@ export default function Profile({
   return (
     <div style={styles.page}>
       <main style={styles.authCard}>
-        <div style={styles.logo}>G</div>
+        <img src={logoSrc} alt="Grow & Glow logo" style={styles.logo} />
         <p style={styles.eyebrow}>GROW & GLOW</p>
         <h1 style={styles.authTitle}>
           {isOnboarding ? "Welcome" : "Edit Profile"}

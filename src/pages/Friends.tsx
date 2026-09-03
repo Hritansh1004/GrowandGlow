@@ -152,9 +152,6 @@ export default function Friends({
             display: "inline-flex",
             alignItems: "center",
             gap: "8px",
-            background: colors.card,
-            border: `1px solid ${colors.border}`,
-            color: colors.text,
           }}
           onClick={() => setPage("dashboard")}
         >

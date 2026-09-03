@@ -1268,21 +1268,34 @@ export default function Timer({
                           type="button"
                           style={{
                             ...styles.primary,
+                            width: "auto",
                             flex: 1,
+                            padding: "12px 14px",
+                            fontSize: "13px",
                             display: "inline-flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            gap: "8px",
+                            gap: "6px",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
                           }}
                           onClick={() => handleStartSequenceBlock(sequenceBlocks[0])}
                         >
-                          <PlayIcon width={16} height={16} />
+                          <PlayIcon width={14} height={14} />
                           Start with "{sequenceBlocks[0].name}"
                         </button>
 
                         <button
                           type="button"
-                          style={{ ...styles.secondary, marginTop: 0, flex: "0 0 auto" }}
+                          style={{
+                            ...styles.secondary,
+                            width: "auto",
+                            marginTop: 0,
+                            flex: "0 0 auto",
+                            padding: "12px 18px",
+                            fontSize: "13px",
+                          }}
                           onClick={() => openSequenceBuilder(viewedSequenceTemplateId)}
                         >
                           Edit

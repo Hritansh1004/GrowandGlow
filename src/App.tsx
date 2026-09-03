@@ -59,6 +59,7 @@ export default function App() {
   const {
     user,
     profile,
+    profileError,
     loading: authLoading,
     isPasswordRecovery,
     login,
@@ -69,6 +70,7 @@ export default function App() {
     updatePassword,
     clearPasswordRecovery,
     uploadAvatar,
+    refreshProfile,
   } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -114,7 +116,7 @@ export default function App() {
       (page === "home" || page === "login" || page === "signup" || page === "forgot-password")
     ) {
       setPage("dashboard");
-    } else if (user && !profileIsComplete && !authLoading) {
+    } else if (user && !profileIsComplete && !profileError && !authLoading) {
       setProfileMode("onboarding");
       setPage("profile");
     } else if (
@@ -126,7 +128,7 @@ export default function App() {
     ) {
       setPage("home");
     }
-  }, [user, profileIsComplete, authLoading, isPasswordRecovery]);
+  }, [user, profileIsComplete, profileError, authLoading, isPasswordRecovery]);
 
   async function handleLogin(e: FormEvent) {
     e.preventDefault();
@@ -147,6 +149,8 @@ export default function App() {
     setFormSubmitting(false);
     if (res?.error) {
       setAuthMessage(res.error.message || "Failed to sign up.");
+    } else if (res?.needsEmailConfirmation) {
+      setAuthMessage("Almost there — we sent a confirmation link to your email. Click it to activate your account, then come back and log in.");
     }
   }
 
@@ -486,6 +490,21 @@ export default function App() {
         onGetStarted={() => setPage("signup")}
         onLogin={() => setPage("login")}
       />
+    );
+  }
+
+  if (!profileIsComplete && profileError) {
+    return (
+      <div style={styles.page}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: "12px", textAlign: "center", padding: "24px" }}>
+          <p style={styles.cardText}>
+            We couldn't load your profile ({profileError}). This is usually temporary.
+          </p>
+          <button type="button" style={styles.primary} onClick={() => refreshProfile()}>
+            Try again
+          </button>
+        </div>
+      </div>
     );
   }
 
