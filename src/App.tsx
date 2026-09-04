@@ -11,6 +11,8 @@ import useStudyRooms from "./hooks/useStudyRooms";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import { useLenis } from "./hooks/useLenis";
+
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
@@ -35,6 +37,7 @@ import DailyReviewModal from "./components/DailyReviewModal";
 export default function App() {
   const styles = useStyles();
   useAudioUnlock();
+  useLenis();
 
   const [page, setPage] = useState("home");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);

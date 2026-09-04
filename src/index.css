@@ -1,1 +1,28 @@
 @import "tailwindcss";
+
+/* Gesture-nav / inertial-scroll support (ViewPager + Lenis).
+   Keeps the browser's own scroll/bounce out of the way of the
+   horizontal swipe pager and each tab's Lenis-driven vertical scroll. */
+/*html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  overscroll-behavior-x: none;
+}*/
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+html.lenis, html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}

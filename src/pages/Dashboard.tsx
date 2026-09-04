@@ -123,7 +123,7 @@ export default function Dashboard({
         >
           <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
             <img
-              src={theme === "dark" ? "/Logo.png" : "/Logo1.png"}
+              src={theme === "dark" ? "/Logo.png" : theme === "light" ? "/Logo2.png" : "/Logo1.png"}
               alt="Grow & Glow logo"
               style={{ width: "26px", height: "26px", objectFit: "contain", flexShrink: 0 }}
             />

@@ -29,8 +29,7 @@ export default function Login({
 }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const { theme } = useTheme();
-  const logoSrc = theme === "dark" ? "/Logo.png" : "/Logo1.png";
-
+  const logoSrc = theme === "dark" ? "/Logo.png" : theme === "light" ? "/Logo2.png" : "/Logo1.png";
   return (
     <div style={styles.page}>
       <main style={styles.authCard}>
