@@ -5,6 +5,7 @@ import useAudioUnlock from "./hooks/useAudioUnlock";
 import useTimer from "./hooks/useTimer";
 import useRoutine from "./hooks/useRoutine";
 import usePlanner from "./hooks/usePlanner";
+import { ensureAllBellChannels } from "./services/notificationService";
 import useDailyReview from "./hooks/useDailyReview";
 import useStudyRooms from "./hooks/useStudyRooms";
 
@@ -38,6 +39,9 @@ export default function App() {
   const styles = useStyles();
   useAudioUnlock();
   useLenis();
+  useEffect(() => {
+    ensureAllBellChannels();
+  }, []);
 
   const [page, setPage] = useState("home");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);

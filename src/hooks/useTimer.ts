@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { playBuiltinAlarm, DEFAULT_BUILTIN_ID, isBuiltinAlarmId } from "../lib/alarmSounds";
+import {
+  scheduleTimerNotification,
+  cancelScheduledNotification,
+} from "../services/notificationService";
 
 const BUCKET = "custom-audio";
+
+// Your architecture only ever has ONE active (running/paused) timer per
+// user at a time (see loadActiveTimer's `.limit(1)` below) — so we can use
+// a single fixed native notification id instead of generating/tracking one
+// per timer row. Scheduling always replaces whatever was there before.
+const NATIVE_ALARM_ID = 1001;
 
 export interface CustomTimerRow {
   id: string;
@@ -70,6 +80,67 @@ export default function useTimer(userId: string | undefined | null) {
     return Math.max(0, Math.round(remaining));
   }, []);
 
+  // Same math as computeRemaining, but returns the absolute end Date —
+  // this is what the native alarm system needs (it fires at a real
+  // timestamp, not a "seconds remaining" countdown).
+  const computeEndDate = useCallback((timer: CustomTimerRow): Date => {
+    const startMs = new Date(timer.start_timestamp).getTime();
+    const pauseMs = (timer.accumulated_pause_seconds || 0) * 1000;
+    const endMs = startMs + timer.duration_seconds * 1000 + pauseMs;
+    return new Date(endMs);
+  }, []);
+
+  // Mirrors the "which bell plays" logic already in finishTimer() below,
+  // so the native alarm rings the same bell the in-app one would have.
+  function resolveAlarmForTimer(timer: CustomTimerRow): string | null | undefined {
+    return timer.session_type === "focus" || !timer.session_type
+      ? timer.alarm_id
+      : timer.break_alarm_id || timer.alarm_id;
+  }
+
+  // Schedules (or replaces) the one native alarm for whatever timer is
+  // currently active. Safe to call every time a timer starts/resumes.
+  const scheduleNativeAlarm = useCallback(
+    async (timer: CustomTimerRow) => {
+      const chosenAlarmId = resolveAlarmForTimer(timer);
+
+      // TODO(stage: custom-bell native plugin): once the custom-bell
+      // native plugin lands, a non-builtin chosenAlarmId will resolve to
+      // its own bundled-on-device sound here instead of falling back to
+      // the default builtin tone. Until then, any custom uploaded bell
+      // still plays correctly in-app (see playTimerAlarm) — only the
+      // closed-app native alarm uses the fallback below.
+      const builtinBellId =
+        chosenAlarmId && isBuiltinAlarmId(chosenAlarmId) ? chosenAlarmId : DEFAULT_BUILTIN_ID;
+
+      try {
+        await scheduleTimerNotification({
+          id: NATIVE_ALARM_ID,
+          title: timer.session_type && timer.session_type !== "focus" ? "Break's over!" : "Time's up!",
+          body: timer.task_name,
+          builtinBellId,
+          atDate: computeEndDate(timer),
+        });
+      } catch (err) {
+        // Native scheduling failing (e.g. permission not granted, or
+        // running in a plain browser tab without Capacitor) should never
+        // break the in-app timer experience — it just means no closed-app
+        // alarm this time. The in-app countdown/finish logic below is
+        // completely unaffected either way.
+        console.warn("Native alarm scheduling failed:", err);
+      }
+    },
+    [computeEndDate]
+  );
+
+  const cancelNativeAlarm = useCallback(async () => {
+    try {
+      await cancelScheduledNotification(NATIVE_ALARM_ID);
+    } catch (err) {
+      console.warn("Native alarm cancel failed:", err);
+    }
+  }, []);
+
   /* =======================================================
      LOAD ACTIVE TIMER ON MOUNT
   ======================================================= */
@@ -101,15 +172,37 @@ export default function useTimer(userId: string | undefined | null) {
     }
 
     if (data) {
-      setActiveTimer(data as CustomTimerRow);
-      setRemainingSeconds(computeRemaining(data as CustomTimerRow));
+      const row = data as CustomTimerRow;
+      setActiveTimer(row);
+      setRemainingSeconds(computeRemaining(row));
       alarmFiredRef.current = false;
+
+      if (row.status === "running") {
+        const alreadyFinished = computeRemaining(row) <= 0;
+        if (alreadyFinished) {
+          // Time already ran out while the app was closed. The native
+          // alarm already rang for this — don't play it again in-app,
+          // but still do the normal "wrap up" bookkeeping (mark
+          // completed, show rating modal / advance Pomodoro).
+          alarmFiredRef.current = true;
+          await finishTimer(row, { skipSound: true });
+        } else {
+          // Still genuinely running — make sure a native alarm is
+          // scheduled for it (covers the case the app was killed by the
+          // OS right after starting, before it had a chance to schedule).
+          scheduleNativeAlarm(row);
+        }
+      } else {
+        // Paused timers should never have a pending native alarm.
+        cancelNativeAlarm();
+      }
     } else {
       setActiveTimer(null);
     }
 
     setTimerLoading(false);
-  }, [userId, computeRemaining]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, computeRemaining, scheduleNativeAlarm, cancelNativeAlarm]);
 
   useEffect(() => {
     loadActiveTimer();
@@ -224,15 +317,21 @@ export default function useTimer(userId: string | undefined | null) {
      FINISH (called automatically when remaining hits 0)
      Handles BOTH a plain custom timer AND one phase of a
      Pomodoro cycle.
+
+     `skipSound` is set when we're just catching up on a
+     completion that already happened (and already rang) while
+     the app was closed — see loadActiveTimer above.
   ======================================================= */
 
-  async function finishTimer(timer: CustomTimerRow) {
-    const alarmToPlay =
-      timer.session_type === "focus" || !timer.session_type
-        ? timer.alarm_id
-        : timer.break_alarm_id || timer.alarm_id;
+  async function finishTimer(timer: CustomTimerRow, opts?: { skipSound?: boolean }) {
+    // Whatever happens next, this timer is done — no native alarm should
+    // still be pending for it.
+    cancelNativeAlarm();
 
-    playTimerAlarm(alarmToPlay);
+    if (!opts?.skipSound) {
+      const alarmToPlay = resolveAlarmForTimer(timer);
+      playTimerAlarm(alarmToPlay);
+    }
 
     const end_timestamp = new Date().toISOString();
 
@@ -365,6 +464,7 @@ export default function useTimer(userId: string | undefined | null) {
     alarmFiredRef.current = false;
     setActiveTimer(active);
     setRemainingSeconds(computeRemaining(active));
+    scheduleNativeAlarm(active);
   }
 
   async function startNextPomodoroPhase() {
@@ -458,6 +558,7 @@ export default function useTimer(userId: string | undefined | null) {
     alarmFiredRef.current = false;
     setActiveTimer(active);
     setRemainingSeconds(computeRemaining(active));
+    scheduleNativeAlarm(active);
 
     return { success: true, data: active };
   }
@@ -525,6 +626,7 @@ export default function useTimer(userId: string | undefined | null) {
     alarmFiredRef.current = false;
     setActiveTimer(active);
     setRemainingSeconds(computeRemaining(active));
+    scheduleNativeAlarm(active);
 
     return { success: true, data: active };
   }
@@ -556,6 +658,7 @@ export default function useTimer(userId: string | undefined | null) {
     const updated = data as CustomTimerRow;
     setActiveTimer(updated);
     setRemainingSeconds(computeRemaining(updated));
+    cancelNativeAlarm();
   }
 
   /* =======================================================
@@ -593,6 +696,7 @@ export default function useTimer(userId: string | undefined | null) {
     const updated = data as CustomTimerRow;
     setActiveTimer(updated);
     setRemainingSeconds(computeRemaining(updated));
+    scheduleNativeAlarm(updated);
   }
 
   /* =======================================================
@@ -619,6 +723,7 @@ export default function useTimer(userId: string | undefined | null) {
 
     setActiveTimer(null);
     setRemainingSeconds(0);
+    cancelNativeAlarm();
     loadRecentTimers();
   }
 
