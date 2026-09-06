@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Grow and Glow</string>
+    <string name="title_activity_main">Grow and Glow</string>
+    <string name="package_name">com.growandglow.app</string>
+    <string name="custom_url_scheme">com.growandglow.app</string>
+</resources>
