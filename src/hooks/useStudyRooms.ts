@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"; import { playBuiltinAlarm, isBuiltinAlarmId, DEFAULT_BUILTIN_ID } from "../lib/alarmSounds";
 import { supabase } from "../lib/supabaseClient";
+import { scheduleTimerNotification, cancelScheduledNotification } from "../services/notificationService";
 import {
   type EnginePeriod,
   sortPeriods,
@@ -105,7 +106,7 @@ export default function useStudyRooms(userId: string | undefined | null) {
   const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const alarmFiredRef = useRef(false);
-
+  const skipNextSoundRef = useRef(false);
   // NEW — Room Routine rating popup: holds the just-completed period
   // (tagged with its own room_period_sessions row id) so StudyRoom.tsx
   // can show a RatingModal for it, same as personal Routine already does
@@ -166,6 +167,49 @@ export default function useStudyRooms(userId: string | undefined | null) {
 
     return Math.max(0, Math.round(totalDuration - elapsedActive));
   }
+
+  function computeSessionEndDate(room: any): Date {
+    const startMs = new Date(room.session_start).getTime();
+    const originalEndMs = new Date(room.session_end).getTime();
+    const totalDuration = (originalEndMs - startMs) / 1000;
+    const pauseMs = (room.accumulated_pause_seconds || 0) * 1000;
+    return new Date(startMs + totalDuration * 1000 + pauseMs);
+  }
+
+  const STUDY_ROOM_ALARM_ID = 4000;
+
+  useEffect(() => {
+    if (!myRoom || myRoom.status !== "active" || !myRoom.session_start || !myRoom.session_end) {
+      cancelScheduledNotification(STUDY_ROOM_ALARM_ID).catch(() => {});
+      return;
+    }
+
+    const endDate = computeSessionEndDate(myRoom);
+
+    if (endDate.getTime() <= Date.now()) {
+      skipNextSoundRef.current = true;
+    }
+
+    const alarmId = myRoom.current_session_alarm_id;
+    const builtinBellId = alarmId && isBuiltinAlarmId(alarmId) ? alarmId : DEFAULT_BUILTIN_ID;
+
+    scheduleTimerNotification({
+      id: STUDY_ROOM_ALARM_ID,
+      title: "Study Room",
+      body: myRoom.current_period_name || "Session ended",
+      builtinBellId,
+      atDate: endDate,
+    }).catch((err) => console.warn("Native room alarm scheduling failed:", err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    myRoom?.status,
+    myRoom?.session_start,
+    myRoom?.session_end,
+    myRoom?.paused_at,
+    myRoom?.accumulated_pause_seconds,
+    myRoom?.current_session_alarm_id,
+    myRoom?.current_period_name,
+  ]);
 
   // Plays the bell for the Live/Sequence session system (ad-hoc group
   // periods and duration-based study_room_periods). This runs on EVERY
@@ -529,7 +573,11 @@ export default function useStudyRooms(userId: string | undefined | null) {
 
       if (remaining <= 0 && !alarmFiredRef.current) {
         alarmFiredRef.current = true;
-        playRoomSessionAlarm(myRoom.current_session_alarm_id);
+        const skipSound = skipNextSoundRef.current;
+        skipNextSoundRef.current = false;
+        if (!skipSound) {
+          playRoomSessionAlarm(myRoom.current_session_alarm_id);
+        }
         if (myRoom.isHost) {
           if (myRoom.current_room_period_id) {
             startNextRoomPeriod();

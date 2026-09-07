@@ -57,3 +57,45 @@ export async function scheduleTimerNotification({
 export async function cancelScheduledNotification(id: number): Promise<void> {
   await LocalNotifications.cancel({ notifications: [{ id }] });
 }
+
+/* =======================================================
+   ROUTINE ALARMS — a day's schedule can have many periods
+   (unlike Timer, which only ever has one active session), so
+   these use a reserved block of notification ids instead of
+   one fixed id. Routine always re-schedules its WHOLE set
+   whenever it reloads (see useRoutine.ts), so cancelling the
+   entire reserved block first and rescheduling fresh each time
+   is correct and keeps stale periods from ever lingering.
+======================================================= */
+
+const ROUTINE_ALARM_ID_BASE = 2000;
+const ROUTINE_ALARM_ID_MAX_SLOTS = 100; // generous cap on periods/day
+
+export async function cancelAllRoutineAlarms(): Promise<void> {
+  const ids = Array.from({ length: ROUTINE_ALARM_ID_MAX_SLOTS }, (_, i) => ROUTINE_ALARM_ID_BASE + i);
+  await LocalNotifications.cancel({ notifications: ids.map((id) => ({ id })) });
+}
+
+interface RoutinePeriodToSchedule {
+  title: string;
+  body: string;
+  builtinBellId: string;
+  atDate: Date;
+}
+
+export async function scheduleRoutineAlarms(periods: RoutinePeriodToSchedule[]): Promise<void> {
+  await cancelAllRoutineAlarms();
+
+  const capped = periods.slice(0, ROUTINE_ALARM_ID_MAX_SLOTS);
+  if (capped.length === 0) return;
+
+  await LocalNotifications.schedule({
+    notifications: capped.map((p, index) => ({
+      id: ROUTINE_ALARM_ID_BASE + index,
+      title: p.title,
+      body: p.body,
+      schedule: { at: p.atDate, allowWhileIdle: true },
+      channelId: `bell_${p.builtinBellId}`,
+    })),
+  });
+}

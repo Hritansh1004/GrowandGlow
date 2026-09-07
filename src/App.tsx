@@ -274,6 +274,7 @@ export default function App() {
     deleteRoutineItem,
     formatRemaining,
     timeToMinutes,
+    reloadRoutine,
   } = useRoutine(user?.id);
 
   const {
@@ -334,6 +335,11 @@ export default function App() {
     togglePlannerItemComplete,
     submitPlannerItemRatingAction,
   } = usePlanner(user?.id);
+
+  useEffect(() => {
+    reloadRoutine();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plannerTasks, plannerItems]);
 
   const {
     pendingReview,

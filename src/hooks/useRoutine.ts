@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { playBuiltinAlarm, DEFAULT_BUILTIN_ID, isBuiltinAlarmId } from "../lib/alarmSounds";
+import { scheduleRoutineAlarms } from "../services/notificationService";
 import {
   getEffectiveDayItems,
   editDayItem,
@@ -93,6 +94,15 @@ export default function useRoutine(userId: string | undefined | null) {
 
   const finalizingRef = useRef(new Set<string>());
 
+  // Populated fresh on every loadRoutine() with the ids of any items whose
+  // end-time had ALREADY passed at load time. A period only lands in this
+  // set if it was already overdue the moment we fetched it — meaning it
+  // must have finished while the app was closed, and the native alarm
+  // already rang for it. Both finalizeSession() and the planner
+  // auto-complete effect check this set to avoid playing the bell a
+  // second time on reopen. Each id is removed once consumed.
+  const catchUpSkipSoundRef = useRef(new Set<string>());
+
   /* =========================
      LIVE CLOCK
   ========================= */
@@ -127,15 +137,7 @@ export default function useRoutine(userId: string | undefined | null) {
   }
 
   /* =========================
-     ALARM PLAYBACK
-
-     NOTE: this fires correctly whenever the app tab is open and the
-     countdown reaches zero — the call already existed before this rewrite.
-     If you're not hearing it, the most common cause is the browser tab
-     being closed/backgrounded when the period actually ends (a web app
-     genuinely cannot play audio while its tab isn't running — this is a
-     browser limitation, not a bug in this code). Test it with the Routine
-     tab open and in the foreground when a period ends.
+     ALARM PLAYBACK (foreground / app-open path)
   ========================= */
 
   const playPeriodAlarm = useCallback(async (alarmId: string | null) => {
@@ -173,6 +175,55 @@ export default function useRoutine(userId: string | undefined | null) {
   }, []);
 
   /* =========================
+     NATIVE ALARM SCHEDULING — closed-app coverage for every
+     not-yet-finished period in today's schedule (template,
+     one_off, AND planner items all share the same RoutineItem
+     shape, so one pass handles all three sources).
+
+     TODO(stage: custom-bell native plugin): non-builtin
+     alarmId values fall back to the default builtin tone for
+     the NATIVE closed-app alarm only, same as Timer. In-app
+     playback (playPeriodAlarm above) already plays the real
+     custom bell correctly.
+  ========================= */
+
+  const scheduleAllNativeRoutineAlarms = useCallback(
+    async (items: RoutineItem[], dateString: string) => {
+      const now = new Date();
+
+      const periods = items
+        .filter((item) => !item.completed)
+        .map((item) => {
+          const endTimestamp = item.end ? toTimestamp(dateString, item.end) : null;
+          if (!endTimestamp) return null;
+
+          const endDate = new Date(endTimestamp);
+          if (endDate <= now) return null; // already over — nothing to schedule
+
+          const builtinBellId =
+            item.alarmId && isBuiltinAlarmId(item.alarmId) ? item.alarmId : DEFAULT_BUILTIN_ID;
+
+          return {
+            title: item.type === "Break" ? "Break's over!" : "Period ended",
+            body: item.title || item.subject || "Routine",
+            builtinBellId,
+            atDate: endDate,
+          };
+        })
+        .filter((p): p is NonNullable<typeof p> => p !== null);
+
+      try {
+        await scheduleRoutineAlarms(periods);
+      } catch (err) {
+        // Same principle as Timer: native scheduling failing should never
+        // block or break the in-app routine experience.
+        console.warn("Native routine alarm scheduling failed:", err);
+      }
+    },
+    []
+  );
+
+  /* =========================
      LOAD TODAY'S EFFECTIVE SCHEDULE
      (via shared daySchedule.ts — now includes Planner tasks merged in)
   ========================= */
@@ -193,6 +244,17 @@ export default function useRoutine(userId: string | undefined | null) {
       const result = await getEffectiveDayItems(userId, dateString);
       const items = result.items.map(dayItemToRoutineItem);
 
+      // Mark which items are ALREADY overdue at this exact load — these
+      // are the ones whose native alarm must already have fired while the
+      // app was closed, so the in-app finalize path must not replay them.
+      const now = new Date();
+      const staleIds = new Set<string>();
+      items.forEach((item) => {
+        const endTs = item.end ? toTimestamp(dateString, item.end) : null;
+        if (endTs && new Date(endTs) <= now) staleIds.add(item.id);
+      });
+      catchUpSkipSoundRef.current = staleIds;
+
       setRawItems(items);
       setRoutineSource(result.routineSource);
       setRoutineLabel(result.routineLabel);
@@ -201,6 +263,10 @@ export default function useRoutine(userId: string | undefined | null) {
       // planner items already carry their own `completed` flag directly.
       const periodItems = items.filter((i) => i.source !== "planner");
       await syncTodaySessions(periodItems, dateString);
+
+      // Schedule (or replace) every native closed-app alarm for today's
+      // remaining periods, across all three sources at once.
+      await scheduleAllNativeRoutineAlarms(items, dateString);
     } catch (e: any) {
       console.error("loadRoutine unexpected error:", e);
       setRawItems([]);
@@ -209,7 +275,7 @@ export default function useRoutine(userId: string | undefined | null) {
     } finally {
       setRoutineLoading(false);
     }
-  }, [userId]);
+  }, [userId, scheduleAllNativeRoutineAlarms]);
 
   useEffect(() => {
     loadRoutine();
@@ -347,7 +413,16 @@ export default function useRoutine(userId: string | undefined | null) {
   }
 
   async function finalizeSession(session: PeriodSessionRow, routineItem: RoutineItem) {
-    playPeriodAlarm(routineItem.alarmId);
+    // If this item was already overdue the moment it was loaded, the
+    // native alarm already rang for it while the app was closed — don't
+    // play it again now just because we're only getting around to
+    // finalizing the DB row.
+    const skipSound = catchUpSkipSoundRef.current.has(routineItem.id);
+    catchUpSkipSoundRef.current.delete(routineItem.id);
+
+    if (!skipSound) {
+      playPeriodAlarm(routineItem.alarmId);
+    }
 
     try {
       const { data, error } = await supabase
@@ -435,10 +510,16 @@ export default function useRoutine(userId: string | undefined | null) {
 
         // Ring once, regardless of whether it was already completed
         // manually before the end time (the bell is a time cue, not a
-        // completion cue).
+        // completion cue) — but skip it if this item was already overdue
+        // at load time, meaning the native alarm already rang for it
+        // while the app was closed.
         if (!plannerAlarmFiredRef.current.has(item.id)) {
           plannerAlarmFiredRef.current.add(item.id);
-          playPeriodAlarm(item.alarmId);
+          const skipSound = catchUpSkipSoundRef.current.has(item.id);
+          catchUpSkipSoundRef.current.delete(item.id);
+          if (!skipSound) {
+            playPeriodAlarm(item.alarmId);
+          }
         }
 
         // Auto-complete only if it isn't already completed (covers the
