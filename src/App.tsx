@@ -6,6 +6,7 @@ import useTimer from "./hooks/useTimer";
 import useRoutine from "./hooks/useRoutine";
 import usePlanner from "./hooks/usePlanner";
 import { ensureAllBellChannels } from "./services/notificationService";
+import { registerForPush } from "./services/pushNotificationService";
 import useDailyReview from "./hooks/useDailyReview";
 import useStudyRooms from "./hooks/useStudyRooms";
 
@@ -42,6 +43,12 @@ export default function App() {
   useEffect(() => {
     ensureAllBellChannels();
   }, []);
+
+  useEffect(() => {
+    if (user?.id) {
+      registerForPush(user.id);
+    }
+  }, [user?.id]);
 
   const [page, setPage] = useState("home");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
