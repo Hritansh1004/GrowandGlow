@@ -44,12 +44,6 @@ export default function App() {
     ensureAllBellChannels();
   }, []);
 
-  useEffect(() => {
-    if (user?.id) {
-      registerForPush(user.id);
-    }
-  }, [user?.id]);
-
   const [page, setPage] = useState("home");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [selectedSequenceTemplateId, setSelectedSequenceTemplateId] = useState<string | null>(null);
@@ -347,6 +341,12 @@ export default function App() {
     reloadRoutine();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plannerTasks, plannerItems]);
+
+  useEffect(() => {
+    if (user?.id) {
+      registerForPush(user.id);
+    }
+  }, [user?.id]);
 
   const {
     pendingReview,
