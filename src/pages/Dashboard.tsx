@@ -199,7 +199,7 @@ export default function Dashboard({
         </div>
 
         {/* TOP BAR */}
-        <div style={{ ...styles.topBar, marginBottom: "20px" }}>
+        <div style={{ ...styles.topBar, marginBottom: "20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <AvatarDisplay
               avatarUrl={profile?.avatar_url}
@@ -231,6 +231,42 @@ export default function Dashboard({
               </h1>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setPage("notifications")}
+            aria-label="Notifications"
+            style={{
+              position: "relative",
+              width: "44px",
+              height: "44px",
+              borderRadius: "14px",
+              border: `1px solid ${colors.border}`,
+              background: colors.card,
+              color: colors.text,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            <BellIcon width={19} height={19} />
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "6px",
+                  right: "6px",
+                  width: "9px",
+                  height: "9px",
+                  borderRadius: "50%",
+                  background: "#ff5c5c",
+                  border: `2px solid ${colors.card}`,
+                }}
+              />
+            )}
+          </button>
         </div>
 
         {/* LIVE CLOCK + STATUS — background/border/glow follow the

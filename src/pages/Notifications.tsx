@@ -22,6 +22,7 @@ export default function Notifications({ user, setPage, openStudyRoom, styles }: 
     markAllRead,
     markActioned,
     deleteNotification,
+    clearAll,
   } = useNotifications(user?.id);
 
   const { acceptFriendRequest, declineFriendRequest } = useFriends(user?.id);
@@ -111,24 +112,48 @@ export default function Notifications({ user, setPage, openStudyRoom, styles }: 
               </p>
             </div>
 
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "10px",
-                  border: "1px solid #202c30",
-                  background: "#11191c",
-                  color: "#58d8c4",
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-                onClick={markAllRead}
-              >
-                Mark all read
-              </button>
-            )}
+            <div style={{ display: "flex", gap: "8px" }}>
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "10px",
+                    border: "1px solid #202c30",
+                    background: "#11191c",
+                    color: "#58d8c4",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                  onClick={markAllRead}
+                >
+                  Mark all read
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button
+                  type="button"
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "10px",
+                    border: "1px solid #202c30",
+                    background: "#11191c",
+                    color: "#9ba8ad",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                  onClick={() => {
+                    if (window.confirm("Clear all notifications? This can't be undone.")) {
+                      clearAll();
+                    }
+                  }}
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

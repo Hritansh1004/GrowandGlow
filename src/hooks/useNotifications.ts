@@ -204,6 +204,21 @@ export default function useNotifications(userId: string | undefined | null) {
     return { success: true };
   }
 
+  async function clearAll() {
+    if (!userId) return { success: false };
+
+    const { error } = await supabase.from("notifications").delete().eq("user_id", userId);
+
+    if (error) {
+      console.error("notifications clearAll error:", error);
+      setMessage(`Could not clear notifications: ${error.message}`);
+      return { success: false, error: error.message };
+    }
+
+    setNotifications([]);
+    return { success: true };
+  }
+
   return {
     notifications,
     unreadCount,
@@ -213,6 +228,7 @@ export default function useNotifications(userId: string | undefined | null) {
     markAllRead,
     markActioned,
     deleteNotification,
+    clearAll,
     reload: loadNotifications,
   };
 }

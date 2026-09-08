@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "771768737699",
+    "project_id": "grow-n-glow",
+    "storage_bucket": "grow-n-glow.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:771768737699:android:2be7c9ce88f326f5a4c416",
+        "android_client_info": {
+          "package_name": "com.growandglow.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnRbU4BLyAHWRwbNBsxRZX8UsfNdxvZl4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
