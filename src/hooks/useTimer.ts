@@ -5,6 +5,8 @@ import {
   scheduleTimerNotification,
   cancelScheduledNotification,
 } from "../services/notificationService";
+import { scheduleCustomBellAlarm, cancelCustomBellAlarm } from "../services/customAlarmPlugin";
+import { ensureCustomBellDownloaded } from "../services/customBellStorage";
 
 const BUCKET = "custom-audio";
 
@@ -103,24 +105,29 @@ export default function useTimer(userId: string | undefined | null) {
   const scheduleNativeAlarm = useCallback(
     async (timer: CustomTimerRow) => {
       const chosenAlarmId = resolveAlarmForTimer(timer);
+      const title = timer.session_type && timer.session_type !== "focus" ? "Break's over!" : "Time's up!";
+      const body = timer.task_name;
+      const atDate = computeEndDate(timer);
 
-      // TODO(stage: custom-bell native plugin): once the custom-bell
-      // native plugin lands, a non-builtin chosenAlarmId will resolve to
-      // its own bundled-on-device sound here instead of falling back to
-      // the default builtin tone. Until then, any custom uploaded bell
-      // still plays correctly in-app (see playTimerAlarm) — only the
-      // closed-app native alarm uses the fallback below.
+      if (chosenAlarmId && !isBuiltinAlarmId(chosenAlarmId)) {
+        const fileName = await ensureCustomBellDownloaded(chosenAlarmId);
+        if (fileName) {
+          try {
+            await cancelScheduledNotification(NATIVE_ALARM_ID);
+            await scheduleCustomBellAlarm({ id: NATIVE_ALARM_ID, fileName, atDate, title, body });
+            return;
+          } catch (err) {
+            console.warn("Native custom-bell scheduling failed, falling back to builtin:", err);
+          }
+        }
+      }
+
       const builtinBellId =
         chosenAlarmId && isBuiltinAlarmId(chosenAlarmId) ? chosenAlarmId : DEFAULT_BUILTIN_ID;
 
       try {
-        await scheduleTimerNotification({
-          id: NATIVE_ALARM_ID,
-          title: timer.session_type && timer.session_type !== "focus" ? "Break's over!" : "Time's up!",
-          body: timer.task_name,
-          builtinBellId,
-          atDate: computeEndDate(timer),
-        });
+        await cancelCustomBellAlarm(NATIVE_ALARM_ID);
+        await scheduleTimerNotification({ id: NATIVE_ALARM_ID, title, body, builtinBellId, atDate });
       } catch (err) {
         // Native scheduling failing (e.g. permission not granted, or
         // running in a plain browser tab without Capacitor) should never
@@ -138,6 +145,11 @@ export default function useTimer(userId: string | undefined | null) {
       await cancelScheduledNotification(NATIVE_ALARM_ID);
     } catch (err) {
       console.warn("Native alarm cancel failed:", err);
+    }
+    try {
+      await cancelCustomBellAlarm(NATIVE_ALARM_ID);
+    } catch (err) {
+      console.warn("Native custom-bell cancel failed:", err);
     }
   }, []);
 

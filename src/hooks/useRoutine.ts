@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { playBuiltinAlarm, DEFAULT_BUILTIN_ID, isBuiltinAlarmId } from "../lib/alarmSounds";
 import { scheduleRoutineAlarms } from "../services/notificationService";
+import { scheduleCustomBellAlarm, cancelCustomBellAlarm } from "../services/customAlarmPlugin";
+import { ensureCustomBellDownloaded } from "../services/customBellStorage";
 import {
   getEffectiveDayItems,
   editDayItem,
@@ -187,37 +189,63 @@ export default function useRoutine(userId: string | undefined | null) {
      custom bell correctly.
   ========================= */
 
+  const ROUTINE_CUSTOM_ALARM_ID_BASE = 3000;
+  const ROUTINE_CUSTOM_ALARM_MAX_SLOTS = 100;
+
   const scheduleAllNativeRoutineAlarms = useCallback(
     async (items: RoutineItem[], dateString: string) => {
       const now = new Date();
 
-      const periods = items
+      const upcoming = items
         .filter((item) => !item.completed)
         .map((item) => {
           const endTimestamp = item.end ? toTimestamp(dateString, item.end) : null;
           if (!endTimestamp) return null;
-
           const endDate = new Date(endTimestamp);
-          if (endDate <= now) return null; // already over — nothing to schedule
-
-          const builtinBellId =
-            item.alarmId && isBuiltinAlarmId(item.alarmId) ? item.alarmId : DEFAULT_BUILTIN_ID;
-
-          return {
-            title: item.type === "Break" ? "Break's over!" : "Period ended",
-            body: item.title || item.subject || "Routine",
-            builtinBellId,
-            atDate: endDate,
-          };
+          if (endDate <= now) return null;
+          return { item, endDate };
         })
-        .filter((p): p is NonNullable<typeof p> => p !== null);
+        .filter((p): p is { item: RoutineItem; endDate: Date } => p !== null);
+
+      const builtinPeriods = upcoming
+        .filter(({ item }) => !item.alarmId || isBuiltinAlarmId(item.alarmId))
+        .map(({ item, endDate }) => ({
+          title: item.type === "Break" ? "Break's over!" : "Period ended",
+          body: item.title || item.subject || "Routine",
+          builtinBellId: item.alarmId && isBuiltinAlarmId(item.alarmId) ? item.alarmId : DEFAULT_BUILTIN_ID,
+          atDate: endDate,
+        }));
+
+      const customUpcoming = upcoming.filter(
+        ({ item }) => item.alarmId && !isBuiltinAlarmId(item.alarmId)
+      );
 
       try {
-        await scheduleRoutineAlarms(periods);
+        await scheduleRoutineAlarms(builtinPeriods);
       } catch (err) {
-        // Same principle as Timer: native scheduling failing should never
-        // block or break the in-app routine experience.
         console.warn("Native routine alarm scheduling failed:", err);
+      }
+
+      for (let i = 0; i < ROUTINE_CUSTOM_ALARM_MAX_SLOTS; i++) {
+        cancelCustomBellAlarm(ROUTINE_CUSTOM_ALARM_ID_BASE + i).catch(() => {});
+      }
+
+      const capped = customUpcoming.slice(0, ROUTINE_CUSTOM_ALARM_MAX_SLOTS);
+      for (let i = 0; i < capped.length; i++) {
+        const { item, endDate } = capped[i];
+        const fileName = await ensureCustomBellDownloaded(item.alarmId as string);
+        if (!fileName) continue;
+        try {
+          await scheduleCustomBellAlarm({
+            id: ROUTINE_CUSTOM_ALARM_ID_BASE + i,
+            fileName,
+            atDate: endDate,
+            title: item.type === "Break" ? "Break's over!" : "Period ended",
+            body: item.title || item.subject || "Routine",
+          });
+        } catch (err) {
+          console.warn("Native custom-bell routine scheduling failed:", err);
+        }
       }
     },
     []

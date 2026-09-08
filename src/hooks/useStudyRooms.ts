@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"; import { playBuiltinAlarm, isBuiltinAlarmId, DEFAULT_BUILTIN_ID } from "../lib/alarmSounds";
 import { supabase } from "../lib/supabaseClient";
 import { scheduleTimerNotification, cancelScheduledNotification } from "../services/notificationService";
+import { scheduleCustomBellAlarm, cancelCustomBellAlarm } from "../services/customAlarmPlugin";
+import { ensureCustomBellDownloaded } from "../services/customBellStorage";
 import {
   type EnginePeriod,
   sortPeriods,
@@ -178,9 +180,10 @@ export default function useStudyRooms(userId: string | undefined | null) {
 
   const STUDY_ROOM_ALARM_ID = 4000;
 
-  useEffect(() => {
+useEffect(() => {
     if (!myRoom || myRoom.status !== "active" || !myRoom.session_start || !myRoom.session_end) {
       cancelScheduledNotification(STUDY_ROOM_ALARM_ID).catch(() => {});
+      cancelCustomBellAlarm(STUDY_ROOM_ALARM_ID).catch(() => {});
       return;
     }
 
@@ -191,15 +194,31 @@ export default function useStudyRooms(userId: string | undefined | null) {
     }
 
     const alarmId = myRoom.current_session_alarm_id;
-    const builtinBellId = alarmId && isBuiltinAlarmId(alarmId) ? alarmId : DEFAULT_BUILTIN_ID;
+    const title = "Study Room";
+    const body = myRoom.current_period_name || "Session ended";
 
-    scheduleTimerNotification({
-      id: STUDY_ROOM_ALARM_ID,
-      title: "Study Room",
-      body: myRoom.current_period_name || "Session ended",
-      builtinBellId,
-      atDate: endDate,
-    }).catch((err) => console.warn("Native room alarm scheduling failed:", err));
+    (async () => {
+      if (alarmId && !isBuiltinAlarmId(alarmId)) {
+        const fileName = await ensureCustomBellDownloaded(alarmId);
+        if (fileName) {
+          try {
+            await cancelScheduledNotification(STUDY_ROOM_ALARM_ID);
+            await scheduleCustomBellAlarm({ id: STUDY_ROOM_ALARM_ID, fileName, atDate: endDate, title, body });
+            return;
+          } catch (err) {
+            console.warn("Native custom-bell room scheduling failed, falling back to builtin:", err);
+          }
+        }
+      }
+
+      const builtinBellId = alarmId && isBuiltinAlarmId(alarmId) ? alarmId : DEFAULT_BUILTIN_ID;
+      try {
+        await cancelCustomBellAlarm(STUDY_ROOM_ALARM_ID);
+        await scheduleTimerNotification({ id: STUDY_ROOM_ALARM_ID, title, body, builtinBellId, atDate: endDate });
+      } catch (err) {
+        console.warn("Native room alarm scheduling failed:", err);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     myRoom?.status,
