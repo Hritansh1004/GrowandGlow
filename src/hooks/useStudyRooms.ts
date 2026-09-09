@@ -1292,6 +1292,24 @@ useEffect(() => {
       console.error("Room invite notification error:", notifError);
     }
 
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", userId)
+      .maybeSingle()
+      .then(({ data: inviterProfile }) => {
+        supabase.functions
+          .invoke("send-push", {
+            body: {
+              userId: friendUserId,
+              title: "Study room invite",
+              body: `${inviterProfile?.display_name || "Someone"} invited you to ${room.name || "a study room"}`,
+              data: { type: "room_invite_received", room_id: room.id, membership_id: membershipId },
+            },
+          })
+          .catch((pushErr) => console.warn("Push send failed (non-fatal):", pushErr));
+      });
+
     await loadMyRoom();
     setActionLoading(false);
     return { success: true };

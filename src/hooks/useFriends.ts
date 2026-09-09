@@ -253,6 +253,24 @@ export default function useFriends(userId: string | undefined | null) {
         );
       }
 
+      supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", userId)
+        .maybeSingle()
+        .then(({ data: senderProfile }) => {
+          supabase.functions
+            .invoke("send-push", {
+              body: {
+                userId: receiverId,
+                title: "New friend request",
+                body: `${senderProfile?.display_name || "Someone"} wants to be your benchmate`,
+                data: { type: "friend_request_received", request_id: data.id },
+              },
+            })
+            .catch((pushErr) => console.warn("Push send failed (non-fatal):", pushErr));
+        });
+
       await loadRequests();
       return { success: true, data };
     } catch (err: any) {
@@ -287,6 +305,24 @@ export default function useFriends(userId: string | undefined | null) {
         if (notifError) {
           console.error("Friend accept notification error:", notifError);
         }
+
+        supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", userId)
+          .maybeSingle()
+          .then(({ data: myProfile }) => {
+            supabase.functions
+              .invoke("send-push", {
+                body: {
+                  userId: requestRow.sender_id,
+                  title: "Friend request accepted",
+                  body: `${myProfile?.display_name || "Someone"} accepted your request`,
+                  data: { type: "friend_request_accepted" },
+                },
+              })
+              .catch((pushErr) => console.warn("Push send failed (non-fatal):", pushErr));
+          });
       }
 
       await refreshAll();
