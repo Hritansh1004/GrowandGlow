@@ -8,6 +8,8 @@ import {
 import { scheduleCustomBellAlarm, cancelCustomBellAlarm } from "../services/customAlarmPlugin";
 import { ensureCustomBellDownloaded } from "../services/customBellStorage";
 import { showLiveStatus, hideLiveStatus } from "../services/liveStatusPlugin";
+import { buildLiveStatusTheme } from "../lib/liveStatusTheme";
+import { useTheme } from "../context/ThemeContext";
 
 const BUCKET = "custom-audio";
 
@@ -52,6 +54,7 @@ export interface PomodoroPhaseInfo extends CustomTimerRow {
 }
 
 export default function useTimer(userId: string | undefined | null) {
+  const { theme: themeMode } = useTheme();
   const [activeTimer, setActiveTimer] = useState<CustomTimerRow | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [timerLoading, setTimerLoading] = useState(true);
@@ -172,10 +175,16 @@ export default function useTimer(userId: string | undefined | null) {
         ? "Paused"
         : "Focus session";
 
+    const percentDone = Math.max(
+      0,
+      Math.min(100, Math.round(((activeTimer.duration_seconds - computeRemaining(activeTimer)) / activeTimer.duration_seconds) * 100))
+    );
+
     showLiveStatus({
       title,
       subtitle,
       endDate: activeTimer.status === "running" ? computeEndDate(activeTimer) : null,
+      progressPercent: percentDone,
       buttons: [
         {
           id: activeTimer.status === "running" ? "pause_timer" : "resume_timer",
@@ -184,6 +193,7 @@ export default function useTimer(userId: string | undefined | null) {
         { id: "stop_timer", label: "Stop" },
       ],
       data: { timerId: activeTimer.id },
+      theme: buildLiveStatusTheme(themeMode, activeTimer.color),
     });
   }, [
     activeTimer?.id,
@@ -197,7 +207,10 @@ export default function useTimer(userId: string | undefined | null) {
     activeTimer?.paused_at,
     activeTimer?.accumulated_pause_seconds,
     activeTimer?.duration_seconds,
+    activeTimer?.color,
+    themeMode,
     computeEndDate,
+    computeRemaining,
   ]);
 
   /* =======================================================
