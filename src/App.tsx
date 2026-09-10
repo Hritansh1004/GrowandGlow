@@ -278,6 +278,7 @@ export default function App() {
     formatRemaining,
     timeToMinutes,
     reloadRoutine,
+    skipCurrentPeriod,
   } = useRoutine(user?.id);
 
   const {
@@ -365,6 +366,9 @@ export default function App() {
         case "stop_timer":
           await stopCustomTimer();
           break;
+        case "skip_routine_period":
+          await skipCurrentPeriod();
+          break;
         default:
           break;
       }
@@ -376,8 +380,7 @@ export default function App() {
     return () => {
       listenerPromise.then((l) => l.remove());
     };
-  }, [pauseCustomTimer, resumeCustomTimer, stopCustomTimer]);
-
+  }, [pauseCustomTimer, resumeCustomTimer, stopCustomTimer, skipCurrentPeriod]);
   const {
     pendingReview,
     submitDailyReview,

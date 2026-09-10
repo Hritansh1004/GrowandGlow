@@ -4,6 +4,9 @@ import { playBuiltinAlarm, DEFAULT_BUILTIN_ID, isBuiltinAlarmId } from "../lib/a
 import { scheduleRoutineAlarms } from "../services/notificationService";
 import { scheduleCustomBellAlarm, cancelCustomBellAlarm } from "../services/customAlarmPlugin";
 import { ensureCustomBellDownloaded } from "../services/customBellStorage";
+import { showLiveStatus, hideLiveStatus } from "../services/liveStatusPlugin";
+import { buildLiveStatusTheme } from "../lib/liveStatusTheme";
+import { useTheme } from "../context/ThemeContext";
 import {
   getEffectiveDayItems,
   editDayItem,
@@ -84,6 +87,7 @@ function dayItemToRoutineItem(item: DayItem): RoutineItem {
 }
 
 export default function useRoutine(userId: string | undefined | null) {
+  const { theme: themeMode } = useTheme();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [rawItems, setRawItems] = useState<RoutineItem[]>([]);
   const [routineSource, setRoutineSource] = useState<"template" | "one_off" | "holiday" | "no_routine" | "none">("none");
@@ -477,6 +481,69 @@ export default function useRoutine(userId: string | undefined | null) {
     }
   }
 
+  async function skipCurrentPeriod() {
+    const item = getCurrentRoutineItem();
+    if (!item) return { success: false };
+
+    if (item.source === "planner") {
+      return togglePlannerItemInRoutine(item);
+    }
+
+    const dateString = getTodayDateString(currentTime);
+    const plannedStart = item.time ? toTimestamp(dateString, item.time) : null;
+    const session = plannedStart ? sessionsByStart[plannedStart] : undefined;
+    if (!session) return { success: false };
+
+    finalizingRef.current.add(session.id);
+    await finalizeSession(session, item);
+    return { success: true };
+  }
+
+  // LIVE STATUS BAR CARD — mirrors whatever period is currently happening,
+  // with a Skip button. Only Routine has no pause/resume concept, so this
+  // is the one section with a single action instead of two.
+  useEffect(() => {
+    const item = getCurrentRoutineItem();
+
+    if (!userId || !item) {
+      hideLiveStatus();
+      return;
+    }
+
+    const dateString = getTodayDateString(currentTime);
+    const endTimestamp = item.end ? toTimestamp(dateString, item.end) : null;
+    const endDate = endTimestamp ? new Date(endTimestamp) : null;
+
+    const totalSeconds = getSecondsFromTime(item.end) - getSecondsFromTime(item.time);
+    const elapsedSeconds = totalSeconds - currentRoutineSeconds;
+    const percentDone =
+      totalSeconds > 0 ? Math.max(0, Math.min(100, Math.round((elapsedSeconds / totalSeconds) * 100))) : -1;
+
+    const next = getNextRoutineItem();
+
+    showLiveStatus({
+      title: item.title || item.subject || (item.type === "Break" ? "Break" : "Study period"),
+      subtitle: next ? `Next: ${next.title || next.subject}` : "Last period today",
+      endDate,
+      progressPercent: percentDone,
+      buttons: [{ id: "skip_routine_period", label: "Skip" }],
+      data: { itemId: item.id },
+      theme: buildLiveStatusTheme(themeMode, item.color),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    userId,
+    currentRoutineItem?.id,
+    currentRoutineItem?.title,
+    currentRoutineItem?.subject,
+    currentRoutineItem?.type,
+    currentRoutineItem?.time,
+    currentRoutineItem?.end,
+    currentRoutineItem?.color,
+    nextRoutineItem?.id,
+    themeMode,
+  ]);
+
   async function submitPeriodRating(sessionId: string, rating: number, note?: string) {
     try {
       const { error } = await supabase
@@ -755,6 +822,7 @@ export default function useRoutine(userId: string | undefined | null) {
     submitPlannerRatingInRoutine,
     editRoutineItem,
     deleteRoutineItem,
+    skipCurrentPeriod,
     timeToMinutes,
     formatRemaining,
   };
