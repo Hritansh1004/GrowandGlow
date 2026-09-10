@@ -9,6 +9,8 @@ import { ensureAllBellChannels } from "./services/notificationService";
 import { registerForPush } from "./services/pushNotificationService";
 import useDailyReview from "./hooks/useDailyReview";
 import useStudyRooms from "./hooks/useStudyRooms";
+import { App as CapacitorApp } from "@capacitor/app";
+import { consumePendingLiveStatusAction } from "./services/liveStatusPlugin";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -347,6 +349,34 @@ export default function App() {
       registerForPush(user.id);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    async function handlePendingLiveStatusAction() {
+      const action = await consumePendingLiveStatusAction();
+      if (!action) return;
+
+      switch (action.actionId) {
+        case "pause_timer":
+          await pauseCustomTimer();
+          break;
+        case "resume_timer":
+          await resumeCustomTimer();
+          break;
+        case "stop_timer":
+          await stopCustomTimer();
+          break;
+        default:
+          break;
+      }
+    }
+
+    handlePendingLiveStatusAction();
+
+    const listenerPromise = CapacitorApp.addListener("resume", handlePendingLiveStatusAction);
+    return () => {
+      listenerPromise.then((l) => l.remove());
+    };
+  }, [pauseCustomTimer, resumeCustomTimer, stopCustomTimer]);
 
   const {
     pendingReview,

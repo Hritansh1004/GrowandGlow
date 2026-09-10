@@ -7,6 +7,7 @@ import {
 } from "../services/notificationService";
 import { scheduleCustomBellAlarm, cancelCustomBellAlarm } from "../services/customAlarmPlugin";
 import { ensureCustomBellDownloaded } from "../services/customBellStorage";
+import { showLiveStatus, hideLiveStatus } from "../services/liveStatusPlugin";
 
 const BUCKET = "custom-audio";
 
@@ -152,6 +153,52 @@ export default function useTimer(userId: string | undefined | null) {
       console.warn("Native custom-bell cancel failed:", err);
     }
   }, []);
+
+  // LIVE STATUS BAR CARD — only reacts to genuine state changes
+  // (start/pause/resume/finish), never the 500ms tick. The native side
+  // ticks the visible countdown itself.
+  useEffect(() => {
+    if (!activeTimer) {
+      hideLiveStatus();
+      return;
+    }
+
+    const isBreak = activeTimer.session_type && activeTimer.session_type !== "focus";
+    const title = isBreak ? "Break time" : activeTimer.task_name;
+    const subtitle =
+      activeTimer.pomodoro_group_id && activeTimer.total_rounds
+        ? `Pomodoro ${activeTimer.round_number || 1} of ${activeTimer.total_rounds}${activeTimer.status === "paused" ? " · Paused" : ""}`
+        : activeTimer.status === "paused"
+        ? "Paused"
+        : "Focus session";
+
+    showLiveStatus({
+      title,
+      subtitle,
+      endDate: activeTimer.status === "running" ? computeEndDate(activeTimer) : null,
+      buttons: [
+        {
+          id: activeTimer.status === "running" ? "pause_timer" : "resume_timer",
+          label: activeTimer.status === "running" ? "Pause" : "Resume",
+        },
+        { id: "stop_timer", label: "Stop" },
+      ],
+      data: { timerId: activeTimer.id },
+    });
+  }, [
+    activeTimer?.id,
+    activeTimer?.status,
+    activeTimer?.task_name,
+    activeTimer?.session_type,
+    activeTimer?.round_number,
+    activeTimer?.total_rounds,
+    activeTimer?.pomodoro_group_id,
+    activeTimer?.start_timestamp,
+    activeTimer?.paused_at,
+    activeTimer?.accumulated_pause_seconds,
+    activeTimer?.duration_seconds,
+    computeEndDate,
+  ]);
 
   /* =======================================================
      LOAD ACTIVE TIMER ON MOUNT
