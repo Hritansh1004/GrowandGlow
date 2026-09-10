@@ -17,15 +17,28 @@ class LiveStatusPlugin : Plugin() {
         val title = call.getString("title") ?: "Active session"
         val subtitle = call.getString("subtitle") ?: ""
         val endMillis = call.getLong("endMillis") ?: -1L
+        val progressPercent = call.getInt("progressPercent") ?: -1
         val buttonsArray = call.getArray("buttons")
         val data = call.getString("data") ?: ""
+
+        val cardBgColor = call.getString("cardBgColor")
+        val accentColor = call.getString("accentColor")
+        val titleColor = call.getString("titleColor")
+        val subtitleColor = call.getString("subtitleColor")
+        val onAccentColor = call.getString("onAccentColor")
 
         val intent = Intent(context, LiveStatusService::class.java).apply {
             putExtra("title", title)
             putExtra("subtitle", subtitle)
             putExtra("endMillis", endMillis)
+            putExtra("progressPercent", progressPercent)
             putExtra("buttons", buttonsArray?.toString() ?: "[]")
             putExtra("data", data)
+            putExtra("cardBgColor", cardBgColor)
+            putExtra("accentColor", accentColor)
+            putExtra("titleColor", titleColor)
+            putExtra("subtitleColor", subtitleColor)
+            putExtra("onAccentColor", onAccentColor)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
