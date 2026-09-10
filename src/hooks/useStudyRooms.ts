@@ -3,6 +3,9 @@ import { supabase } from "../lib/supabaseClient";
 import { scheduleTimerNotification, cancelScheduledNotification } from "../services/notificationService";
 import { scheduleCustomBellAlarm, cancelCustomBellAlarm } from "../services/customAlarmPlugin";
 import { ensureCustomBellDownloaded } from "../services/customBellStorage";
+import { showLiveStatus, hideLiveStatus } from "../services/liveStatusPlugin";
+import { buildLiveStatusTheme } from "../lib/liveStatusTheme";
+import { useTheme } from "../context/ThemeContext";
 import {
   type EnginePeriod,
   sortPeriods,
@@ -85,7 +88,8 @@ export interface StudyRoomData {
   isHost: boolean;
 }
 
-export default function useStudyRooms(userId: string | undefined | null) {
+ export default function useStudyRooms(userId: string | undefined | null) {
+  const { theme: themeMode } = useTheme();
   const [myRoom, setMyRoom] = useState<StudyRoomData | null>(null);
   const [roomLoading, setRoomLoading] = useState(true);
   const [roomMessage, setRoomMessage] = useState("");
@@ -1352,6 +1356,54 @@ useEffect(() => {
     if (accept) await loadMyRoom();
     return { success: true };
   }
+
+  async function leaveRoom() {
+    useEffect(() => {
+    if (!myRoom || myRoom.status !== "active") {
+      hideLiveStatus();
+      return;
+    }
+
+    const friendCount = Math.max(0, (myRoom.members?.length || 1) - 1);
+    const subtitle =
+      friendCount > 0
+        ? `${friendCount} ${friendCount === 1 ? "friend" : "friends"} studying with you`
+        : "Studying solo";
+
+    const endDate =
+      myRoom.session_start && myRoom.session_end ? computeSessionEndDate(myRoom) : null;
+
+    let percentDone = -1;
+    if (myRoom.session_start && myRoom.session_end) {
+      const totalMs = new Date(myRoom.session_end).getTime() - new Date(myRoom.session_start).getTime();
+      if (totalMs > 0) {
+        const remainingMs = computeRemaining(myRoom) * 1000;
+        percentDone = Math.max(0, Math.min(100, Math.round(((totalMs / 1000 - remainingMs / 1000) / (totalMs / 1000)) * 100)));
+      }
+    }
+
+    showLiveStatus({
+      title: myRoom.name || "Study Room",
+      subtitle: `${myRoom.current_period_name || "Studying"} · ${subtitle}`,
+      endDate,
+      progressPercent: percentDone,
+      buttons: [{ id: "leave_room", label: "Leave Room" }],
+      data: { roomId: myRoom.id },
+      theme: buildLiveStatusTheme(themeMode, null),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    myRoom?.id,
+    myRoom?.status,
+    myRoom?.name,
+    myRoom?.current_period_name,
+    myRoom?.members?.length,
+    myRoom?.session_start,
+    myRoom?.session_end,
+    myRoom?.paused_at,
+    myRoom?.accumulated_pause_seconds,
+    themeMode,
+  ]);
 
   async function leaveRoom() {
     if (!myRoom) return { success: false };

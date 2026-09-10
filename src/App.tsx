@@ -369,6 +369,9 @@ export default function App() {
         case "skip_routine_period":
           await skipCurrentPeriod();
           break;
+        case "leave_room":
+          await leaveRoom();
+          break;
         default:
           break;
       }
@@ -380,7 +383,7 @@ export default function App() {
     return () => {
       listenerPromise.then((l) => l.remove());
     };
-  }, [pauseCustomTimer, resumeCustomTimer, stopCustomTimer, skipCurrentPeriod]);
+  }, [pauseCustomTimer, resumeCustomTimer, stopCustomTimer, skipCurrentPeriod, leaveRoom]);
   const {
     pendingReview,
     submitDailyReview,

@@ -499,51 +499,6 @@ export default function useRoutine(userId: string | undefined | null) {
     return { success: true };
   }
 
-  // LIVE STATUS BAR CARD — mirrors whatever period is currently happening,
-  // with a Skip button. Only Routine has no pause/resume concept, so this
-  // is the one section with a single action instead of two.
-  useEffect(() => {
-    const item = getCurrentRoutineItem();
-
-    if (!userId || !item) {
-      hideLiveStatus();
-      return;
-    }
-
-    const dateString = getTodayDateString(currentTime);
-    const endTimestamp = item.end ? toTimestamp(dateString, item.end) : null;
-    const endDate = endTimestamp ? new Date(endTimestamp) : null;
-
-    const totalSeconds = getSecondsFromTime(item.end) - getSecondsFromTime(item.time);
-    const elapsedSeconds = totalSeconds - currentRoutineSeconds;
-    const percentDone =
-      totalSeconds > 0 ? Math.max(0, Math.min(100, Math.round((elapsedSeconds / totalSeconds) * 100))) : -1;
-
-    const next = getNextRoutineItem();
-
-    showLiveStatus({
-      title: item.title || item.subject || (item.type === "Break" ? "Break" : "Study period"),
-      subtitle: next ? `Next: ${next.title || next.subject}` : "Last period today",
-      endDate,
-      progressPercent: percentDone,
-      buttons: [{ id: "skip_routine_period", label: "Skip" }],
-      data: { itemId: item.id },
-      theme: buildLiveStatusTheme(themeMode, item.color),
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    userId,
-    currentRoutineItem?.id,
-    currentRoutineItem?.title,
-    currentRoutineItem?.subject,
-    currentRoutineItem?.type,
-    currentRoutineItem?.time,
-    currentRoutineItem?.end,
-    currentRoutineItem?.color,
-    nextRoutineItem?.id,
-    themeMode,
-  ]);
-
   async function submitPeriodRating(sessionId: string, rating: number, note?: string) {
     try {
       const { error } = await supabase
@@ -798,6 +753,47 @@ export default function useRoutine(userId: string | undefined | null) {
     () => enrichedRoutine.filter((item) => !item.completed),
     [enrichedRoutine]
   );
+
+  useEffect(() => {
+    if (!userId || !currentRoutineItem) {
+      hideLiveStatus();
+      return;
+    }
+
+    const dateString = getTodayDateString(currentTime);
+    const endTimestamp = currentRoutineItem.end ? toTimestamp(dateString, currentRoutineItem.end) : null;
+    const endDate = endTimestamp ? new Date(endTimestamp) : null;
+
+    const totalSeconds = getSecondsFromTime(currentRoutineItem.end) - getSecondsFromTime(currentRoutineItem.time);
+    const elapsedSeconds = totalSeconds - currentRoutineSeconds;
+    const percentDone =
+      totalSeconds > 0 ? Math.max(0, Math.min(100, Math.round((elapsedSeconds / totalSeconds) * 100))) : -1;
+
+    showLiveStatus({
+      title:
+        currentRoutineItem.title ||
+        currentRoutineItem.subject ||
+        (currentRoutineItem.type === "Break" ? "Break" : "Study period"),
+      subtitle: nextRoutineItem ? `Next: ${nextRoutineItem.title || nextRoutineItem.subject}` : "Last period today",
+      endDate,
+      progressPercent: percentDone,
+      buttons: [{ id: "skip_routine_period", label: "Skip" }],
+      data: { itemId: currentRoutineItem.id },
+      theme: buildLiveStatusTheme(themeMode, currentRoutineItem.color),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    userId,
+    currentRoutineItem?.id,
+    currentRoutineItem?.title,
+    currentRoutineItem?.subject,
+    currentRoutineItem?.type,
+    currentRoutineItem?.time,
+    currentRoutineItem?.end,
+    currentRoutineItem?.color,
+    nextRoutineItem?.id,
+    themeMode,
+  ]);
 
   return {
     routine: enrichedRoutine,
