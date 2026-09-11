@@ -351,6 +351,8 @@ export default function App() {
     }
   }, [user?.id]);
 
+  const { joinRoomByCode, roomMessage: inviteLinkMessage, leaveRoom } = useStudyRooms(user?.id);
+
   useEffect(() => {
     async function handlePendingLiveStatusAction() {
       const action = await consumePendingLiveStatusAction();
@@ -392,7 +394,7 @@ export default function App() {
     reviewMessage,
   } = useDailyReview(user?.id, routine, routineLoading, routineSource);
 
-  const { joinRoomByCode, roomMessage: inviteLinkMessage } = useStudyRooms(user?.id);
+  
   const [inviteLinkHandled, setInviteLinkHandled] = useState(false);
 
   function handleOpenTemplateBuilder(templateId: string) {

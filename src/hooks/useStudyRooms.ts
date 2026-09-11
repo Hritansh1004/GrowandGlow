@@ -1357,8 +1357,7 @@ useEffect(() => {
     return { success: true };
   }
 
-  async function leaveRoom() {
-    useEffect(() => {
+  useEffect(() => {
     if (!myRoom || myRoom.status !== "active") {
       hideLiveStatus();
       return;
